@@ -26,7 +26,7 @@ namespace Llong
                     typeof(AprilShower),
                     typeof(GraduationCap)
                 ],
-                Emotions.EForBonesTooltip, // Head icon that gets patched by Core
+                Core.EmotionLlongFlip,
                 false, // Not secret
                 "") // No secret unlock condition
         {

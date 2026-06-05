@@ -23,7 +23,7 @@ namespace Llong
         public static SDFSpriteMetadataAsset LlongDialogueFlipSdf = null;
         public static Dictionary<string, Sprite> ItemSprites = [];
         public static Dictionary<string, SDFSpriteMetadataAsset> ItemSdfs = [];
-        public static int LlongEmotionFlip = 11079;
+        public static Emotions EmotionLlongFlip = (Emotions)11079;
 
         public override void OnInitializeMelon()
         {
@@ -161,24 +161,26 @@ namespace Llong
     {
         static bool Prefix(out Sprite __result, Emotions emotion)
         {
-            // I use EForBonesTooltip as a special identifier. I can't extend the Emotions enum, but
-            // if the emotion is E talking to Bones, and the player isn't Bones, we can use it as our own thing!
-            // This has the side effect of Llong appearing in tooltips about Bones, but whatever.
-            if (emotion == Emotions.EForBonesTooltip)
+            if (emotion == Core.EmotionLlongFlip)
             {
-                Character character = GameStatics.GetPlayer().GetCharacter();
-                MelonLogger.Msg("[Llong] Getting an emotion sprite for EForBonesTooltip");
-                MelonLogger.Msg($"[Llong] Current character: {character}");
-                MelonLogger.Msg($"[Llong] Dialogue flip sprite: {Core.LlongDialogueFlipSprite}");
-                if ((character == null || character.GetName() != "Bones") && Core.LlongDialogueFlipSprite)
-                {
-                    // Use Llong instead
-                    __result = Core.LlongDialogueFlipSprite;
-                    return false;
-                }
+                __result = Core.LlongDialogueFlipSprite;
+                return false;
             }
             __result = null;
             return true;
+        }
+    }
+
+    [HarmonyPatch(typeof(ContinueRunDetails), "OnEnable")]
+    static class ContinueRunDetails_OnEnable_Patch
+    {
+        static void Postfix(Image ____characterImage)
+        {
+            // If the save has 0 as the emotion, it's PROBABLY because it's supposed to be Llong but he's not in the enum
+            if (SaveManager.GetCurrentRun().MyCharacter.MyEmotion == (Emotions)0)
+            {
+                ____characterImage.sprite = Core.LlongDialogueFlipSprite;
+            }
         }
     }
 
@@ -187,16 +189,10 @@ namespace Llong
     {
         static bool Prefix(out SDFSpriteMetadataAsset __result, Emotions emotion)
         {
-            // If the emotion is E talking to Bones, and the player isn't Bones...
-            if (emotion == Emotions.EForBonesTooltip)
+            if (emotion == Core.EmotionLlongFlip)
             {
-                Character character = GameStatics.GetPlayer().GetCharacter();
-                if ((character == null || character.GetName() != "Bones") && Core.LlongDialogueFlipSdf)
-                {
-                    // Use Llong instead
-                    __result = Core.LlongDialogueFlipSdf;
-                    return false;
-                }
+                __result = Core.LlongDialogueFlipSdf;
+                return false;
             }
             __result = null;
             return true;
@@ -308,8 +304,8 @@ namespace Llong
             if (!____characterSpecificToolTips.ContainsKey(typeof(LlongCharacter)))
             {
                 ____characterSpecificToolTips.Add(typeof(LlongCharacter), [
-                    new ValueTuple<string, Emotions>("Stretched letters are ALWAYS ignored when checking the dictionary", Emotions.EForBonesTooltip),
-                    new ValueTuple<string, Emotions>("Numbers don't count stretched letters", Emotions.EForBonesTooltip)
+                    new ValueTuple<string, Emotions>("Stretched letters are ALWAYS ignored when checking the dictionary", Core.EmotionLlongFlip),
+                    new ValueTuple<string, Emotions>("Numbers don't count stretched letters", Core.EmotionLlongFlip)
                 ]);
             }
         }
