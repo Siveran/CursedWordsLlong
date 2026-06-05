@@ -9,7 +9,6 @@ namespace Llong.Unlocks
         public CleverDisguise()
         {
             Name = "Clever Disguise";
-            //SpriteData.Add(new ItemSpriteData(ItemSpriteUsage.Default, "BlackHole"));
             SpriteData.Add(new LlongItemData(ItemSpriteUsage.Default, "disguise"));
             Rarity = ItemRarity.Rare;
             Cost = 16;

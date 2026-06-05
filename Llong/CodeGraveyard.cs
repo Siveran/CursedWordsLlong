@@ -308,7 +308,7 @@ namespace Llong
         {
             static bool Prefix(out Item __result, List<Type> unavailableItemTypes)
             {
-                List<Type> stampsToTest = [ typeof(SnoozedAlarmClock), typeof(Atria), typeof(Bookkeeper), typeof(FigureEightKnot), typeof(CommonAccordion)];
+                List<Type> stampsToTest = [ typeof(SnoozedAlarmClock), typeof(Bookkeeper), typeof(FigureEightKnot), typeof(CommonAccordion)];
 
                 int randomChoice = UnityEngine.Random.Range(0, stampsToTest.Count());
                 if (!unavailableItemTypes.Contains(stampsToTest[randomChoice]))
@@ -333,7 +333,7 @@ namespace Llong
         {
             static bool Prefix(out Item __result, List<Type> unavailableItemTypes)
             {
-                List<Type> stickersToTest = [typeof(CleverDisguise), typeof(ChosenOne), typeof(YoYo)];
+                List<Type> stickersToTest = [typeof(CleverDisguise), typeof(Atria), typeof(ChosenOne), typeof(YoYo)];
 
                 int randomChoice = UnityEngine.Random.Range(0, stickersToTest.Count());
                 if (!unavailableItemTypes.Contains(stickersToTest[randomChoice]))

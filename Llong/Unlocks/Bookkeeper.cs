@@ -12,7 +12,6 @@ namespace Llong.Unlocks
 		public Bookkeeper()
 		{
             Name = "Bookkeeper";
-            //SpriteData.Add(new ItemSpriteData(ItemSpriteUsage.Default, "BlackHole"));
             SpriteData.Add(new LlongItemData(ItemSpriteUsage.Default, "books"));
             Rarity = ItemRarity.Legendary;
             Cost = 30;

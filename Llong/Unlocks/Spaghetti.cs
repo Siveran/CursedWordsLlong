@@ -15,8 +15,6 @@ namespace Llong.Unlocks
                     new UpgradeableComponent(1, 1, 1) // Repeated letter multiplier (1/2/3/...)
                 ];
 
-            //this.Tags = [ ItemTag.ShinyBuild, ItemTag.BlankBuild ];
-
             this.PinColors = [
                     new Color32(110, byte.MaxValue, 60, byte.MaxValue),
                     new Color32(230, 191, 85, byte.MaxValue)

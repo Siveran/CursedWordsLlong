@@ -7,7 +7,6 @@ namespace Llong.Unlocks
         public CommonAccordion()
         {
             Name = "Common Accordion";
-            //SpriteData.Add(new ItemSpriteData(ItemSpriteUsage.Default, "BlackHole"));
             SpriteData.Add(new LlongItemData(ItemSpriteUsage.Default, "accordion"));
             Rarity = ItemRarity.Common;
             Cost = 13;
@@ -16,19 +15,12 @@ namespace Llong.Unlocks
                     ItemTag.RainbowBuild
                 ];
             DependencyTags = [];
-            //UpgradeableComponents = [new UpgradeableComponent(1, 4, 4)];
             ItemFunctionTags = [ItemFunctionTag.Scatterer];
             RelevantColours = [];
         }
         public override string GetDescription()
         {
             return string.Format("START OF GRID: Randomly recolor tiles that have the most common letter on the grid");
-            /*
-            return string.Format("START OF GRID: Tiles with the most common letter on the grid get {0}+{1}{2} BASE SCORE",
-                GameStatics.ZeroWidthCharacter,
-                this.UpgradeableComponents[0].VariableValue,
-                GameStatics.ZeroWidthCharacter);
-            */
         }
 
         public override GridData ApplyStartOfGridEffect(GridData gridData, int gridNumber, int numberOfGrids, List<HistoricWord> previousWords, List<BoardGenVizInfo> vizSteps, bool isReroll)

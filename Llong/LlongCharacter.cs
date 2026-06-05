@@ -34,14 +34,6 @@ namespace Llong
 
         public override RuntimeAnimatorController GetRuntimeAnimatorController()
         {
-            //RuntimeAnimatorController rac = Activator.CreateInstance<BonesTheDog>().GetRuntimeAnimatorController();
-            //return rac;
-            /*
-            foreach (var item in rac.animationClips)
-            {
-                MelonLogger.Msg(item.GameObject());
-            }
-            */
             if (Core.LlongAnimator)
             {
                 CharacterRuntimeAnimators[typeof(LlongCharacter)] = Core.LlongAnimator;

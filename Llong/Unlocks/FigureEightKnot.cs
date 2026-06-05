@@ -10,7 +10,6 @@ namespace Llong.Unlocks
         public FigureEightKnot()
         {
             Name = "Figure Eight Knot";
-            //SpriteData.Add(new ItemSpriteData(ItemSpriteUsage.Default, "BlackHole"));
             SpriteData.Add(new LlongItemData(ItemSpriteUsage.Default, "knot"));
             Rarity = ItemRarity.Common;
             Cost = 16;

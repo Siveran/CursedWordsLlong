@@ -9,7 +9,6 @@ namespace Llong.Unlocks
         public YoYo()
         {
             Name = "Yo-Yo";
-            //SpriteData.Add(new ItemSpriteData(ItemSpriteUsage.Default, "BlackHole"));
             SpriteData.Add(new LlongItemData(ItemSpriteUsage.Default, "yoyo"));
             Rarity = ItemRarity.Common;
             Cost = 8;

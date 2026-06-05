@@ -10,7 +10,6 @@ namespace Llong.Unlocks
         public SnoozedAlarmClock()
         {
             Name = "Snoozed Alarm Clock";
-            //SpriteData.Add(new ItemSpriteData(ItemSpriteUsage.Default, "BlackHole"));
             SpriteData.Add(new LlongItemData(ItemSpriteUsage.Default, "alarmclock"));
             Rarity = ItemRarity.Common;
             Cost = 13;
@@ -26,8 +25,7 @@ namespace Llong.Unlocks
         private bool IsBottomTile(Tile tile, GridData gridData)
         {
             Vector2Int coordinates = tile.GetCoordinates();
-            //Vector2Int dimensions = gridData.GetDimensions();
-            return coordinates.y == 0;// dimensions.y - 1;
+            return coordinates.y == 0;
         }
 
         public override GridData ApplyStartOfGridEffect(GridData gridData, int gridNumber, int numberOfGrids, List<HistoricWord> previousWords, List<BoardGenVizInfo> vizSteps, bool isReroll)

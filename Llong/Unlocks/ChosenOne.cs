@@ -14,7 +14,6 @@ namespace Llong.Unlocks
         public ChosenOne()
         {
             Name = "Chosen One";
-            //SpriteData.Add(new ItemSpriteData(ItemSpriteUsage.Default, "BlackHole"));
             SpriteData.Add(new LlongItemData(ItemSpriteUsage.Default, "person"));
             Rarity = ItemRarity.Rare;
             Cost = 16;
