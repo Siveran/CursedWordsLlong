@@ -8,7 +8,7 @@ Llong is finally awake and ready to wobble as a new member of the Ssecret Ssynta
 - A new curse mechanic to explore!
 - Eight more unlockable items!
 
-This repository exists so people can use it as an example if they want to make their own items/characters.
+This repository exists so people can use it as an example if they want to make their own items/characters for Cursed Words.
 
 # Installation
 
