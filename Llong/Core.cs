@@ -22,7 +22,8 @@ namespace Llong
         public static SDFSpriteMetadataAsset LlongDialogueSdf = null;
         public static SDFSpriteMetadataAsset LlongDialogueFlipSdf = null;
         public static Dictionary<string, Sprite> ItemSprites = [];
-        public static Dictionary<string, SDFSpriteMetadataAsset> ItemSdfs = []; 
+        public static Dictionary<string, SDFSpriteMetadataAsset> ItemSdfs = [];
+        public static int LlongEmotionFlip = 11079;
 
         public override void OnInitializeMelon()
         {
@@ -31,41 +32,51 @@ namespace Llong
 
         public override void OnApplicationStart()
         {
+            // Manual install instructions tell people to put the files directly in Mods/, but r2modman/gale/thunderstore put files in Mods/CREATOR_NAME/
+            // Support both locations!
             string path = Path.Combine([Application.dataPath, "../Mods/noodleassets"]);
-            AssetBundle assetBundle = AssetBundle.LoadFromFile(path);
+            string modManagerInstallPath = Path.Combine([Application.dataPath, "../Mods/Siveran/noodleassets"]);
+            AssetBundle assetBundle = AssetBundle.LoadFromFile(path) ?? AssetBundle.LoadFromFile(modManagerInstallPath);
             if (assetBundle == null)
             {
-                MelonLogger.Msg($"[Llong] We couldn't find the bundle from {path}");
+                MelonLogger.Warning($"[Llong] We couldn't find the bundle from {path}");
             }
             else
             {
+                // Search through the bundle for the two root assets that we need
                 LlongAssetBundle = assetBundle;
-                MelonLogger.Msg(string.Join(" ||| ", assetBundle.GetAllAssetNames()));
+                // MelonLogger.Msg("[Llong] " + string.Join(" ||| ", assetBundle.GetAllAssetNames()));
                 UnityEngine.Object[] assets = assetBundle.LoadAllAssets();
                 foreach (var item in assets)
                 {
                     MelonLogger.Msg(item.name);
                     if (item.GetType() == typeof(RuntimeAnimatorController))
                     {
-                        MelonLogger.Msg("We found an animator controller!");
+                        MelonLogger.Msg("[Llong] We found an animator controller!");
                         LlongAnimator = item as RuntimeAnimatorController;
                     }
                     if (item.GetType() == typeof(Sprite))
                     {
                         if (item.name == "Noodle")
                         {
-                            MelonLogger.Msg("We found a main sprite!");
+                            MelonLogger.Msg("[Llong] We found a main sprite!");
                             LlongSprite = item as Sprite;
                         }
                     }
                 }
             }
 
+            // Items are stored separately because I quarantined SDF-having assets to their own project.
+            // That wasn't at all necessary, I just was trying to isolate them while figuring them out!
+            // Signed Distance Fields are nifty things that help with drawing strokes around sprites
+            // Cursed Words generates and uses them via this plugin: https://assetstore.unity.com/packages/tools/gui/sdf-image-quality-ui-outlines-and-shadow-244942
+            // For those who come after: 102 border offset, 0.5 gradient size, make sure generate mipmaps is checked on the base image
             string itemsPath = Path.Combine([Application.dataPath, "../Mods/noodleitems"]);
-            AssetBundle itemsAssetBundle = AssetBundle.LoadFromFile(itemsPath);
+            string itemsModManagerInstallPath = Path.Combine([Application.dataPath, "../Mods/Siveran/noodleitems"]);
+            AssetBundle itemsAssetBundle = AssetBundle.LoadFromFile(itemsPath) ?? AssetBundle.LoadFromFile(itemsModManagerInstallPath);
             if (itemsAssetBundle == null)
             {
-                MelonLogger.Msg($"[Llong] We couldn't find the item bundle from {itemsPath}");
+                MelonLogger.Warning($"[Llong] We couldn't find the item bundle from {itemsPath}");
             }
             UnityEngine.Object[] itemAssets = itemsAssetBundle.LoadAllAssets();
             foreach (var item in itemAssets)
@@ -73,12 +84,12 @@ namespace Llong
                 // The dialogue sprites are with the items because they need SDF metadata
                 if (item.GetType() == typeof(Sprite))
                 {
-                    if (item.name == "NoodleDialogue1")
+                    if (item.name == "NoodleDialogue2")
                     {
                         MelonLogger.Msg("[Llong] We found a dialogue sprite!");
                         LlongDialogueSprite = item as Sprite;
                     }
-                    else if (item.name == "NoodleDialogue2")
+                    else if (item.name == "NoodleDialogue1")
                     {
                         MelonLogger.Msg("[Llong] We found a flipped dialogue sprite!");
                         LlongDialogueFlipSprite = item as Sprite;
@@ -92,12 +103,12 @@ namespace Llong
                 else if (item.GetType() == typeof(SDFSpriteMetadataAsset))
                 {
                     string trimmedName = item.name.PartBefore('(');
-                    if (trimmedName == "NoodleDialogue1")
+                    if (trimmedName == "NoodleDialogue2")
                     {
                         MelonLogger.Msg("[Llong] We found a dialogue SDF!");
                         LlongDialogueSdf = item as SDFSpriteMetadataAsset;
                     }
-                    else if (trimmedName == "NoodleDialogue2")
+                    else if (trimmedName == "NoodleDialogue1")
                     {
                         MelonLogger.Msg("[Llong] We found a flipped dialogue SDF!");
                         LlongDialogueFlipSdf = item as SDFSpriteMetadataAsset;
@@ -108,13 +119,10 @@ namespace Llong
                         ItemSdfs[item.name.PartBefore('(')] = item as SDFSpriteMetadataAsset;
                     }
                 }
-                else
-                {
-                    //MelonLogger.Msg($"[Llong] The items file had a {item.GetType().Name} named {item.name}?");
-                }
             }
         }
 
+        // See Type_GetType_Patch
         static public Type GetType(string typeName)
         {
             return Assembly.GetExecutingAssembly().GetType(typeName);
@@ -258,30 +266,6 @@ namespace Llong
             }
 
             // Do normal type lookup
-            __result = null;
-            return true;
-        }
-    }
-
-    [HarmonyPatch(typeof(ItemPools), "GetRandomBuildBiasedSticker", [typeof(List<Type>)])]
-    static class ItemPools_GetRandomBuildBiasedSticker_Patch
-    {
-        static bool Prefix(out Item __result, List<Type> unavailableItemTypes)
-        {
-            List<Type> stickersToTest = [typeof(Atria)];
-
-            int randomChoice = UnityEngine.Random.Range(0, stickersToTest.Count());
-            if (!unavailableItemTypes.Contains(stickersToTest[randomChoice]))
-            {
-                __result = Activator.CreateInstance(stickersToTest[randomChoice]) as Item;
-                MelonLogger.Msg($"[Llong] Stocking item: {__result.Name}");
-                return false;
-            }
-            else
-            {
-                MelonLogger.Msg($"[Llong] Couldn't stock: {stickersToTest[randomChoice].Name}");
-            }
-
             __result = null;
             return true;
         }

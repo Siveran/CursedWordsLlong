@@ -20,7 +20,7 @@ namespace Llong.Unlocks
                     ItemTag.BigNumbersBuild
                 ];
             DependencyTags = [];
-            ItemFunctionTags = [ItemFunctionTag.Scatterer];
+            ItemFunctionTags = [ItemFunctionTag.Tech];
             RelevantColours = [];
         }
 

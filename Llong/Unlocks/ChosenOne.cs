@@ -21,7 +21,7 @@ namespace Llong.Unlocks
             Tags = [];
             DependencyTags = [];
             UpgradeableComponents = [new UpgradeableComponent(1, 1, 1)];
-            ItemFunctionTags = [ItemFunctionTag.Tech];
+            ItemFunctionTags = [ItemFunctionTag.GenericAdditive];
             RelevantColours = [];
         }
 
