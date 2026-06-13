@@ -13,7 +13,7 @@ namespace Llong
         public LlongCharacter()
             : base("Llong",
                 "",
-                "After his most recent decades-long slumber, Llong seeks to get updated on all the recent slang to become keeeeeen and groooooooooovy again.<br><br>...Llong you're covering up four people please move.",
+                "After his most recent decades-long slumber, Llong seeks to get updated on all the recent slang to become keeeeeen and groooooooooovy again.<br><br>...Llong you're covering up three people please move.",
                 new Spaghetti(),
                 "llong",
                 new Color32(86, 63, 115, byte.MaxValue), // Left pin upgrade color

@@ -1,13 +1,8 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Llong.Unlocks
+﻿namespace Llong.Unlocks
 {
     class Bookkeeper : Item
     {
-        public List<Tile> TilesFound = [];
+        public List<Tile> TilesRemembered = [];
 
 		public Bookkeeper()
 		{
@@ -24,9 +19,9 @@ namespace Llong.Unlocks
         public override string GetDescription()
         {
             string description;
-            if (TilesFound.Count > 0)
+            if (TilesRemembered.Count > 0)
             {
-                description = "Scatters: " + string.Join(", ", TilesFound.Select(tile => tile.GetStringRepresentation(false).ToUpper()));
+                description = "Scatters: " + string.Join(", ", TilesRemembered.Select(tile => tile.GetStringRepresentation(false).ToUpper()));
             }
             else
             {
@@ -35,22 +30,49 @@ namespace Llong.Unlocks
             return string.Join("<br><br>", [description, "(Submit a word with a double letter to improve this)"]);
         }
 
+        private void CopyGlyphFromTile(Tile source, Tile destination)
+        {
+            destination.Letter = source.Letter;
+            destination.Number = source.Number;
+            destination.FractionNumbers = [.. source.FractionNumbers];
+            destination.PieceType = source.PieceType;
+            destination.IsWhitePiece = source.IsWhitePiece;
+            destination.IsEmptyTile = source.IsEmpty();
+            if (source.ScatteredItem != null)
+            {
+                Item item = Activator.CreateInstance(source.ScatteredItem.GetType()) as Item;
+                if (source.ScatteredItem.UpgradeableComponents.Count > 0 && source.ScatteredItem.UpgradeableComponents[0].Level > 1)
+                {
+                    for (int i = 0; i < source.ScatteredItem.UpgradeableComponents[0].Level - 1; i++)
+                    {
+                        item.Upgrade(0, false);
+                    }
+                }
+                destination.ScatteredItem = item;
+            }
+            destination.MyGlyphType = source.GetGlyphType();
+        }
+
         public override GridData ApplyStartOfGridEffect(GridData gridData, int gridNumber, int numberOfGrids, List<HistoricWord> previousWords, List<BoardGenVizInfo> vizSteps, bool isReroll)
         {
-            List<Tile> list = new List<Tile>();
-            for (int i = 0; i < this.TilesFound.Count; i++)
+            List<Tile> changedTiles = [];
+            List<Tile> allowedTargets = gridData.GetAvailableTiles();
+            List<Tile> availableRememberedTiles = [.. TilesRemembered];
+            for (int i = 0; i < this.TilesRemembered.Count; i++)
             {
-                Tile tile = this.TilesFound[i];
-                Tile tileForItemScatter = GridUtility.Singleton.GetTileForItemScatter(gridData, tile.GetTileType(), tile.GetGlyphType(), null, true);
+                Tile rememberedTile = availableRememberedTiles[UnityEngine.Random.Range(0, availableRememberedTiles.Count)];
+                availableRememberedTiles.Remove(rememberedTile);
+                Tile tileForItemScatter = GridUtility.Singleton.GetTileForItemScatter(gridData, TileType.Normal, rememberedTile.GetGlyphType(), allowedTargets, true);
                 if (tileForItemScatter != null)
                 {
-                    tileForItemScatter.SetAsCopy(TilesFound[i], false);
-                    list.Add(tileForItemScatter);
+                    allowedTargets.Remove(tileForItemScatter);
+                    CopyGlyphFromTile(rememberedTile, tileForItemScatter);
+                    changedTiles.Add(tileForItemScatter);
                 }
             }
-            if (list.Count > 0)
+            if (changedTiles.Count > 0)
             {
-                vizSteps.Add(new BoardGenVizInfo(gridData, this, list, false, null, false, false, false, vizSteps[vizSteps.Count - 1].PlayerConsumableTiles));
+                vizSteps.Add(new BoardGenVizInfo(gridData, this, changedTiles, false, null, false, false, false, vizSteps[vizSteps.Count - 1].PlayerConsumableTiles));
             }
             return gridData;
         }
@@ -70,7 +92,7 @@ namespace Llong.Unlocks
                 currentTileString = tiles[i].GetStringRepresentation(false);
                 if (previousTileString == currentTileString)
                 {
-                    TilesFound.Add(tiles[i - 1]);
+                    TilesRemembered.Add(tiles[i - 1]);
                     foundIndex = i;
                     break;
                 }

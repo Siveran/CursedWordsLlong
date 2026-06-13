@@ -7,7 +7,7 @@ using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
 
-[assembly: MelonInfo(typeof(Llong.Core), "Llong", "1.0.0", "Orange", null)]
+[assembly: MelonInfo(typeof(Llong.Core), "Llong", "1.0.4", "Orange", null)]
 [assembly: MelonGame("Buried Things", "Cursed Words")]
 
 namespace Llong
@@ -32,10 +32,11 @@ namespace Llong
 
         public override void OnApplicationStart()
         {
-            // Manual install instructions tell people to put the files directly in Mods/, but r2modman/gale/thunderstore put files in Mods/CREATOR_NAME/
+            // Manual install instructions tell people to put the files directly in Mods/, but r2modman/gale/thunderstore put files somewhere else
             // Support both locations!
             string path = Path.Combine([Application.dataPath, "../Mods/noodleassets"]);
-            string modManagerInstallPath = Path.Combine([Application.dataPath, "../Mods/Siveran/noodleassets"]);
+            string modManagerInstallPath = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) + "/noodleassets";
+            MelonLogger.Msg("[Llong] trying to find assets at " + modManagerInstallPath);
             AssetBundle assetBundle = AssetBundle.LoadFromFile(path) ?? AssetBundle.LoadFromFile(modManagerInstallPath);
             if (assetBundle == null)
             {
@@ -49,17 +50,17 @@ namespace Llong
                 UnityEngine.Object[] assets = assetBundle.LoadAllAssets();
                 foreach (var item in assets)
                 {
-                    MelonLogger.Msg(item.name);
+                    // MelonLogger.Msg(item.name);
                     if (item.GetType() == typeof(RuntimeAnimatorController))
                     {
-                        MelonLogger.Msg("[Llong] We found an animator controller!");
+                        // MelonLogger.Msg("[Llong] We found an animator controller!");
                         LlongAnimator = item as RuntimeAnimatorController;
                     }
                     if (item.GetType() == typeof(Sprite))
                     {
                         if (item.name == "Noodle")
                         {
-                            MelonLogger.Msg("[Llong] We found a main sprite!");
+                            // MelonLogger.Msg("[Llong] We found a main sprite!");
                             LlongSprite = item as Sprite;
                         }
                     }
@@ -72,51 +73,55 @@ namespace Llong
             // Cursed Words generates and uses them via this plugin: https://assetstore.unity.com/packages/tools/gui/sdf-image-quality-ui-outlines-and-shadow-244942
             // For those who come after: 102 border offset, 0.5 gradient size, make sure generate mipmaps is checked on the base image
             string itemsPath = Path.Combine([Application.dataPath, "../Mods/noodleitems"]);
-            string itemsModManagerInstallPath = Path.Combine([Application.dataPath, "../Mods/Siveran/noodleitems"]);
+            string itemsModManagerInstallPath = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) + "/noodleitems";
+            MelonLogger.Msg("[Llong] trying to find item assets at " + itemsModManagerInstallPath);
             AssetBundle itemsAssetBundle = AssetBundle.LoadFromFile(itemsPath) ?? AssetBundle.LoadFromFile(itemsModManagerInstallPath);
             if (itemsAssetBundle == null)
             {
                 MelonLogger.Warning($"[Llong] We couldn't find the item bundle from {itemsPath}");
             }
-            UnityEngine.Object[] itemAssets = itemsAssetBundle.LoadAllAssets();
-            foreach (var item in itemAssets)
+            else
             {
-                // The dialogue sprites are with the items because they need SDF metadata
-                if (item.GetType() == typeof(Sprite))
+                UnityEngine.Object[] itemAssets = itemsAssetBundle.LoadAllAssets();
+                foreach (var item in itemAssets)
                 {
-                    if (item.name == "NoodleDialogue2")
+                    // The dialogue sprites are with the items because they need SDF metadata
+                    if (item.GetType() == typeof(Sprite))
                     {
-                        MelonLogger.Msg("[Llong] We found a dialogue sprite!");
-                        LlongDialogueSprite = item as Sprite;
+                        if (item.name == "NoodleDialogue2")
+                        {
+                            // MelonLogger.Msg("[Llong] We found a dialogue sprite!");
+                            LlongDialogueSprite = item as Sprite;
+                        }
+                        else if (item.name == "NoodleDialogue1")
+                        {
+                            // MelonLogger.Msg("[Llong] We found a flipped dialogue sprite!");
+                            LlongDialogueFlipSprite = item as Sprite;
+                        }
+                        else if (!item.name.Contains("(SDFSprite)"))
+                        {
+                            // MelonLogger.Msg($"[Llong] The items file had a Sprite named {item.name}!");
+                            ItemSprites[item.name] = item as Sprite;
+                        }
                     }
-                    else if (item.name == "NoodleDialogue1")
+                    else if (item.GetType() == typeof(SDFSpriteMetadataAsset))
                     {
-                        MelonLogger.Msg("[Llong] We found a flipped dialogue sprite!");
-                        LlongDialogueFlipSprite = item as Sprite;
-                    }
-                    else if (!item.name.Contains("(SDFSprite)"))
-                    {
-                        MelonLogger.Msg($"[Llong] The items file had a Sprite named {item.name}!");
-                        ItemSprites[item.name] = item as Sprite;
-                    }
-                }
-                else if (item.GetType() == typeof(SDFSpriteMetadataAsset))
-                {
-                    string trimmedName = item.name.PartBefore('(');
-                    if (trimmedName == "NoodleDialogue2")
-                    {
-                        MelonLogger.Msg("[Llong] We found a dialogue SDF!");
-                        LlongDialogueSdf = item as SDFSpriteMetadataAsset;
-                    }
-                    else if (trimmedName == "NoodleDialogue1")
-                    {
-                        MelonLogger.Msg("[Llong] We found a flipped dialogue SDF!");
-                        LlongDialogueFlipSdf = item as SDFSpriteMetadataAsset;
-                    }
-                    else
-                    {
-                        MelonLogger.Msg($"[Llong] The items file had an SDF named {item.name}!");
-                        ItemSdfs[item.name.PartBefore('(')] = item as SDFSpriteMetadataAsset;
+                        string trimmedName = item.name.PartBefore('(');
+                        if (trimmedName == "NoodleDialogue2")
+                        {
+                            // MelonLogger.Msg("[Llong] We found a dialogue SDF!");
+                            LlongDialogueSdf = item as SDFSpriteMetadataAsset;
+                        }
+                        else if (trimmedName == "NoodleDialogue1")
+                        {
+                            // MelonLogger.Msg("[Llong] We found a flipped dialogue SDF!");
+                            LlongDialogueFlipSdf = item as SDFSpriteMetadataAsset;
+                        }
+                        else
+                        {
+                            // MelonLogger.Msg($"[Llong] The items file had an SDF named {item.name}!");
+                            ItemSdfs[item.name.PartBefore('(')] = item as SDFSpriteMetadataAsset;
+                        }
                     }
                 }
             }
@@ -300,7 +305,7 @@ namespace Llong
     {
         static void Prefix(ref Dictionary<Type, List<ValueTuple<string, Emotions>>> ____characterSpecificToolTips)
         {
-            MelonLogger.Msg("[Llong] Adding Llong tooltips");
+            // MelonLogger.Msg("[Llong] Adding Llong tooltips");
             if (!____characterSpecificToolTips.ContainsKey(typeof(LlongCharacter)))
             {
                 ____characterSpecificToolTips.Add(typeof(LlongCharacter), [
@@ -318,7 +323,7 @@ namespace Llong
     {
         static void Postfix(IDCard __instance)
         {
-            MelonLogger.Msg("[Llong] Adding Llong's ID card");
+            // MelonLogger.Msg("[Llong] Adding Llong's ID card");
             // TODO: Make an ID for Llong.
             // __instance.SpriteData.Add(new ItemSpriteData(ItemSpriteUsage.AvocadoMushy, "LlongIDCard"));
             // __instance.CharacterToSpriteUsage.Add(typeof(LlongCharacter), ItemSpriteUsage.AvocadoMushy);
