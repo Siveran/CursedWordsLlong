@@ -6,8 +6,9 @@ using System.Reflection;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
+using FullSerializer;
 
-[assembly: MelonInfo(typeof(Llong.Core), "Llong", "1.0.4", "Orange", null)]
+[assembly: MelonInfo(typeof(Llong.Core), "Llong", "1.0.6", "Orange", null)]
 [assembly: MelonGame("Buried Things", "Cursed Words")]
 
 namespace Llong
@@ -324,10 +325,46 @@ namespace Llong
         static void Postfix(IDCard __instance)
         {
             // MelonLogger.Msg("[Llong] Adding Llong's ID card");
-            // TODO: Make an ID for Llong.
-            // __instance.SpriteData.Add(new ItemSpriteData(ItemSpriteUsage.AvocadoMushy, "LlongIDCard"));
-            // __instance.CharacterToSpriteUsage.Add(typeof(LlongCharacter), ItemSpriteUsage.AvocadoMushy);
-            __instance.CharacterToSpriteUsage.Add(typeof(LlongCharacter), ItemSpriteUsage.Default);
+            __instance.SpriteData.Add(new LlongItemData(ItemSpriteUsage.AvocadoMushy, "LlongIDCard"));
+            __instance.CharacterToSpriteUsage.Add(typeof(LlongCharacter), ItemSpriteUsage.AvocadoMushy);
+        }
+    }
+
+    [HarmonyPatch(typeof(SaveFileUtility), "GetSaveFileFromFile")]
+    static class SaveFileUtility_GetSaveFileFromFile_Patch
+    {
+        static void Postfix(int slotIndex, ref SaveFile __result)
+        {
+            int highestLlongCompletedAscension = -1;
+            if (__result != null && __result.CharacterHighestCompletedAscensions.ContainsKey(typeof(LlongCharacter)))
+            {
+                highestLlongCompletedAscension = __result.CharacterHighestCompletedAscensions[typeof(LlongCharacter)];
+            }
+            if (highestLlongCompletedAscension == -1)
+            {
+                // Llong is either missing or just got reset to -1. Check to see if there's a slot_X_llong.sav to recover from
+                FallbackSaveUtility fallback = new FallbackSaveUtility(slotIndex);
+                fsData fallbackData = fallback.Load();
+                if (fallbackData != null && fallbackData.AsDictionary.ContainsKey("LlongHighestCompletedAscension") && fallbackData.AsDictionary["LlongHighestCompletedAscension"].IsInt64)
+                {
+                    __result.CharacterHighestCompletedAscensions[typeof(LlongCharacter)] = (int)fallbackData.AsDictionary["LlongHighestCompletedAscension"].AsInt64;
+                    MelonLogger.Msg($"[Llong] Recovered crown level: {__result.CharacterHighestCompletedAscensions[typeof(LlongCharacter)]}");
+                }
+                else
+                {
+                    MelonLogger.Msg($"[Llong] No crown data to recover");
+                }
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(SaveManager), "SaveFileToFile")]
+    static class SaveManager_SaveFileToFile_Patch
+    {
+        static void Postfix(int slotIndex)
+        {
+            FallbackSaveUtility fallback = new FallbackSaveUtility(slotIndex);
+            fallback.Save();
         }
     }
 }

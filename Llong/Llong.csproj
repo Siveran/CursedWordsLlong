@@ -382,6 +382,8 @@
 		<Compile Include="CodeGraveyard.cs" />
 		<Compile Include="Core.cs" />
 		<Compile Include="LlongCharacter.cs" />
+		<Compile Include="FallbackSaveData.cs" />
+		<Compile Include="FallbackSaveUtility.cs" />
 		<Compile Include="Unlocks\LlongItemData.cs" />
 		<Compile Include="Unlocks\Spaghetti.cs" />
 		<Compile Include="Stretchability.cs" />
@@ -398,5 +400,6 @@
 	
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
 		<Exec Command="COPY &quot;$(TargetPath)&quot; &quot;$(GamePath)/Mods&quot;" />
+		<!--<Exec Command="COPY &quot;$(TargetPath)&quot; &quot;C:\Users\Orange\Documents\Projects\Melon\LlongTS\Mods\&quot;" />-->
 	</Target>
 </Project>
