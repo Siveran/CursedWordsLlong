@@ -20,7 +20,7 @@ namespace Llong.Unlocks
         }
         public override string GetDescription()
         {
-            return string.Format("START OF GRID: Randomly recolor tiles that have the most common letter on the grid");
+            return string.Format("START OF GRID: Randomly recolor tiles that have the most common letter(s) on the grid");
         }
 
         public override GridData ApplyStartOfGridEffect(GridData gridData, int gridNumber, int numberOfGrids, List<HistoricWord> previousWords, List<BoardGenVizInfo> vizSteps, bool isReroll)

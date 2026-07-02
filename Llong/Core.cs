@@ -12,7 +12,7 @@ namespace Llong
 {
     public class Core : MelonMod
     {
-        public const bool DEBUG_ENABLED = true;
+        public const bool DEBUG_ENABLED = false;
         public static AssetBundle LlongAssetBundle = null;
         public static RuntimeAnimatorController LlongAnimator = null;
         public static Sprite LlongSprite = null;

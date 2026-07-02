@@ -22,10 +22,9 @@ namespace Llong.Unlocks
             return "START OF GRID: The bottom row of tiles become Zs";
         }
 
-        private bool IsBottomTile(Tile tile, GridData gridData)
+        private bool IsBottomTile(Tile tile)
         {
-            Vector2Int coordinates = tile.GetCoordinates();
-            return coordinates.y == 0;
+            return tile.GetCoordinates().y == 0;
         }
 
         public override GridData ApplyStartOfGridEffect(GridData gridData, int gridNumber, int numberOfGrids, List<HistoricWord> previousWords, List<BoardGenVizInfo> vizSteps, bool isReroll)
@@ -33,7 +32,7 @@ namespace Llong.Unlocks
             List<Tile> list = new List<Tile>();
             foreach (Tile tile in gridData.GetAvailableTiles())
             {
-                if (IsBottomTile(tile, gridData))
+                if (IsBottomTile(tile))
                 {
                     tile.SetLetter("z");
                     list.Add(tile);

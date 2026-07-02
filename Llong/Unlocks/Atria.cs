@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Llong.Unlocks
+﻿namespace Llong.Unlocks
 {
     class Atria : Item
     {
@@ -64,13 +60,13 @@ namespace Llong.Unlocks
             {
                 return gridData;
             }
-            int num = CountRepeatSets(previousWords[previousWords.Count - 1].Tiles);
+            int num = CountRepeatSets(previousWords[^1].Tiles);
             
             if (num == 0)
             {
                 return gridData;
             }
-            List<Tile> list = new List<Tile>();
+            List<Tile> list = [];
             for (int i = 0; i < num * this.UpgradeableComponents[0].VariableValue; i++)
             {
                 Tile tileForItemScatter = GridUtility.Singleton.GetTileForItemScatter(gridData, TileType.Normal, GlyphType.None, null, true);
@@ -82,7 +78,7 @@ namespace Llong.Unlocks
             }
             if (list.Count > 0)
             {
-                vizSteps.Add(new BoardGenVizInfo(gridData, this, list, false, null, false, false, true, vizSteps[vizSteps.Count - 1].PlayerConsumableTiles));
+                vizSteps.Add(new BoardGenVizInfo(gridData, this, list, false, null, false, false, true, vizSteps[^1].PlayerConsumableTiles));
             }
             return gridData;
         }

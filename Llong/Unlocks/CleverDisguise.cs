@@ -32,7 +32,7 @@ namespace Llong.Unlocks
             // Find the highest base value tiles
             List<Tile> tiles = gridData.GetAvailableTiles();
             List<Tile> valuableTiles = [];
-            long highestValue = -999;
+            long highestValue = -999999;
             foreach (var tile in tiles)
             {
                 if (tile.GetValue().Score > highestValue)
@@ -48,7 +48,7 @@ namespace Llong.Unlocks
 
             if (tiles.Count == 0)
             {
-                MelonLogger.Msg("[Llong:Unlocks.CleverDisguise] Somehow we didn't find any highest value submitted tiles");
+                MelonLogger.Warning("[Llong] Somehow Clever Disguise didn't find any highest value submitted tiles");
                 return gridData;
             }
 
@@ -65,11 +65,11 @@ namespace Llong.Unlocks
 
                 if (tileToScatter == null)
                 {
-                    MelonLogger.Msg("[Llong:Unlocks.CleverDisguise] Couldn't get a tile to scatter to!");
+                    MelonLogger.Warning("[Llong] Clever Disguise couldn't get a tile to scatter to!");
                     continue;
                 }
 
-                MelonLogger.Msg($"[Llong:Unlocks.CleverDisguise] Scattering a {highestTile.GetStringRepresentation(false)} to {tileToScatter.GetCoordinates().x},{tileToScatter.GetCoordinates().y}");
+                Core.DebugLog($"[Llong:Unlocks.CleverDisguise] Scattering a {highestTile.GetStringRepresentation(false)} to {tileToScatter.GetCoordinates().x},{tileToScatter.GetCoordinates().y}");
                 tileToScatter.SetAsCopy(highestTile, false);
                 scatteredTiles.Add(tileToScatter);
             }
