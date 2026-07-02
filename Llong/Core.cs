@@ -5,7 +5,7 @@ using System.Reflection;
 using Unity.VisualScripting;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(Llong.Core), "Llong", "1.0.6", "Orange", null)]
+[assembly: MelonInfo(typeof(Llong.Core), "Llong", "1.0.7", "Orange", null)]
 [assembly: MelonGame("Buried Things", "Cursed Words")]
 
 namespace Llong
