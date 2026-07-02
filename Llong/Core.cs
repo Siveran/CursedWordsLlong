@@ -1,12 +1,9 @@
-﻿using HarmonyLib;
-using Llong.Unlocks;
+﻿
 using MelonLoader;
 using nickeltin.SDF.Runtime;
 using System.Reflection;
 using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.UI;
-using FullSerializer;
 
 [assembly: MelonInfo(typeof(Llong.Core), "Llong", "1.0.6", "Orange", null)]
 [assembly: MelonGame("Buried Things", "Cursed Words")]
@@ -15,6 +12,7 @@ namespace Llong
 {
     public class Core : MelonMod
     {
+        public const bool DEBUG_ENABLED = true;
         public static AssetBundle LlongAssetBundle = null;
         public static RuntimeAnimatorController LlongAnimator = null;
         public static Sprite LlongSprite = null;
@@ -33,12 +31,12 @@ namespace Llong
 
         public override void OnApplicationStart()
         {
-            // Manual install instructions tell people to put the files directly in Mods/, but r2modman/gale/thunderstore put files somewhere else
-            // Support both locations!
-            string path = Path.Combine([Application.dataPath, "../Mods/noodleassets"]);
-            string modManagerInstallPath = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) + "/noodleassets";
-            MelonLogger.Msg("[Llong] trying to find assets at " + modManagerInstallPath);
-            AssetBundle assetBundle = AssetBundle.LoadFromFile(path) ?? AssetBundle.LoadFromFile(modManagerInstallPath);
+            // The two asset files (noodleassets and noodleitems) SHOULD be in the same directory as the assembly.
+            // This covers both manual install and mod manager install options.
+            string directory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            string path = directory + "/noodleassets";
+            MelonLogger.Msg("[Llong] trying to find assets at " + path);
+            AssetBundle assetBundle = AssetBundle.LoadFromFile(path);
             if (assetBundle == null)
             {
                 MelonLogger.Warning($"[Llong] We couldn't find the bundle from {path}");
@@ -47,23 +45,20 @@ namespace Llong
             {
                 // Search through the bundle for the two root assets that we need
                 LlongAssetBundle = assetBundle;
-                // MelonLogger.Msg("[Llong] " + string.Join(" ||| ", assetBundle.GetAllAssetNames()));
+                DebugLog("[Llong] " + string.Join(" ||| ", assetBundle.GetAllAssetNames()));
                 UnityEngine.Object[] assets = assetBundle.LoadAllAssets();
                 foreach (var item in assets)
                 {
-                    // MelonLogger.Msg(item.name);
+                    DebugLog($"[Llong] Looking at asset {item.name}");
                     if (item.GetType() == typeof(RuntimeAnimatorController))
                     {
-                        // MelonLogger.Msg("[Llong] We found an animator controller!");
+                        DebugLog("[Llong] We found an animator controller!");
                         LlongAnimator = item as RuntimeAnimatorController;
                     }
-                    if (item.GetType() == typeof(Sprite))
+                    if (item.GetType() == typeof(Sprite) && item.name == "Noodle")
                     {
-                        if (item.name == "Noodle")
-                        {
-                            // MelonLogger.Msg("[Llong] We found a main sprite!");
-                            LlongSprite = item as Sprite;
-                        }
+                        DebugLog("[Llong] We found a main sprite!");
+                        LlongSprite = item as Sprite;
                     }
                 }
             }
@@ -91,17 +86,17 @@ namespace Llong
                     {
                         if (item.name == "NoodleDialogue2")
                         {
-                            // MelonLogger.Msg("[Llong] We found a dialogue sprite!");
+                            DebugLog("[Llong] We found a dialogue sprite!");
                             LlongDialogueSprite = item as Sprite;
                         }
                         else if (item.name == "NoodleDialogue1")
                         {
-                            // MelonLogger.Msg("[Llong] We found a flipped dialogue sprite!");
+                            DebugLog("[Llong] We found a flipped dialogue sprite!");
                             LlongDialogueFlipSprite = item as Sprite;
                         }
                         else if (!item.name.Contains("(SDFSprite)"))
                         {
-                            // MelonLogger.Msg($"[Llong] The items file had a Sprite named {item.name}!");
+                            DebugLog($"[Llong] The items file had a Sprite named {item.name}!");
                             ItemSprites[item.name] = item as Sprite;
                         }
                     }
@@ -110,17 +105,17 @@ namespace Llong
                         string trimmedName = item.name.PartBefore('(');
                         if (trimmedName == "NoodleDialogue2")
                         {
-                            // MelonLogger.Msg("[Llong] We found a dialogue SDF!");
+                            DebugLog("[Llong] We found a dialogue SDF!");
                             LlongDialogueSdf = item as SDFSpriteMetadataAsset;
                         }
                         else if (trimmedName == "NoodleDialogue1")
                         {
-                            // MelonLogger.Msg("[Llong] We found a flipped dialogue SDF!");
+                            DebugLog("[Llong] We found a flipped dialogue SDF!");
                             LlongDialogueFlipSdf = item as SDFSpriteMetadataAsset;
                         }
                         else
                         {
-                            // MelonLogger.Msg($"[Llong] The items file had an SDF named {item.name}!");
+                            DebugLog($"[Llong] The items file had an SDF named {item.name}!");
                             ItemSdfs[item.name.PartBefore('(')] = item as SDFSpriteMetadataAsset;
                         }
                     }
@@ -128,243 +123,18 @@ namespace Llong
             }
         }
 
-        // See Type_GetType_Patch
+        static public void DebugLog(string message)
+        {
+            if (DEBUG_ENABLED)
+            {
+                MelonLogger.Msg(System.ConsoleColor.Gray, message);
+            }
+        }
+
+        // See Type_GetType_Patch in Patches.cs
         static public Type GetType(string typeName)
         {
             return Assembly.GetExecutingAssembly().GetType(typeName);
-        }
-    }
-
-    [HarmonyPatch(typeof(RunsHistoryController), "PopulateOverallStats")]
-    static class RunsHistoryController_PopulateOverallStats_Patch
-    {
-        static void Postfix(Image ____mostPlayedCharacterPortrait)
-        {
-            if (SaveManager.GetMostPlayedCharacterType() == typeof(LlongCharacter))
-            {
-                ____mostPlayedCharacterPortrait.sprite = Core.LlongDialogueFlipSprite;
-            }
-        }
-    }
-
-    [HarmonyPatch(typeof(RunParentController), "GetPortraitSprite")]
-    static class RunParentController_GetPortraitSprite_Patch
-    {
-        static bool Prefix(out SDFSpriteMetadataAsset __result, Character c)
-        {
-            if (c.GetName() == "Llong" && Core.LlongDialogueFlipSdf)
-            {
-                __result = Core.LlongDialogueFlipSdf;
-                return false;
-            }
-            __result = null;
-            return true;
-        }
-    }
-
-    [HarmonyPatch(typeof(DialogueUtility), "GetEmotionSprite")]
-    static class DialogueUtility_GetEmotionSprite_Patch
-    {
-        static bool Prefix(out Sprite __result, Emotions emotion)
-        {
-            if (emotion == Core.EmotionLlongFlip)
-            {
-                __result = Core.LlongDialogueFlipSprite;
-                return false;
-            }
-            __result = null;
-            return true;
-        }
-    }
-
-    [HarmonyPatch(typeof(ContinueRunDetails), "OnEnable")]
-    static class ContinueRunDetails_OnEnable_Patch
-    {
-        static void Postfix(Image ____characterImage)
-        {
-            // If the save has 0 as the emotion, it's PROBABLY because it's supposed to be Llong but he's not in the enum
-            if (SaveManager.GetCurrentRun().MyCharacter.MyEmotion == (Emotions)0)
-            {
-                ____characterImage.sprite = Core.LlongDialogueFlipSprite;
-            }
-        }
-    }
-
-    [HarmonyPatch(typeof(DialogueUtility), "GetEmotionSDFSprite")]
-    static class DialogueUtility_GetEmotionSDFSprite_Patch
-    {
-        static bool Prefix(out SDFSpriteMetadataAsset __result, Emotions emotion)
-        {
-            if (emotion == Core.EmotionLlongFlip)
-            {
-                __result = Core.LlongDialogueFlipSdf;
-                return false;
-            }
-            __result = null;
-            return true;
-        }
-    }
-
-    [HarmonyPatch(typeof(ItemSpriteData), "GetSDFSprite")]
-    static class ItemSpriteData_GetSDFSprite_Patch
-    {
-        static void Prefix(ItemSpriteData __instance)
-        {
-            // I use BLACKHOLE all caps as a special identifier for custom items
-            // Even if the assets can't be found via this mod, it'll fall back to the Black Hole items' assets
-            if (__instance.AssetPath == "BLACKHOLE")
-            {
-                LlongItemData item = __instance as LlongItemData;
-                if (item.TrueSDF)
-                {
-                    item.ItemSDFSprite = item.TrueSDF;
-                }
-            }
-        }
-    }
-
-    [HarmonyPatch(typeof(ItemSpriteData), "GetSprite")]
-    static class ItemSpriteData_GetSprite_Patch
-    {
-        static void Prefix(ItemSpriteData __instance)
-        {
-            // I use BLACKHOLE all caps as a special identifier for custom items
-            // Even if the assets can't be found via this mod, it'll fall back to the Black Hole items' assets
-            if (__instance.AssetPath == "BLACKHOLE")
-            {
-                LlongItemData item = __instance as LlongItemData;
-                if (item.TrueSprite)
-                {
-                    item.ItemSprite = item.TrueSprite;
-                }
-            }
-        }
-    }
-
-    [HarmonyPatch(typeof(Assembly), "GetTypes", MethodType.Normal)]
-    [HarmonyPatch([])]
-    static class Assembly_GetTypes_Patch
-    {
-        static void Postfix(Assembly __instance, ref Type[] __result)
-        {
-            if (__instance.GetName().Name == "Assembly-CSharp")
-            {
-                __result = [.. __result, .. Assembly.GetAssembly(typeof(LlongCharacter)).GetTypes()];
-            }
-        }
-    }
-
-    [HarmonyPatch(typeof(Type), "GetType", MethodType.Normal)]
-    [HarmonyPatch([typeof(string)])]
-    static class Type_GetType_Patch
-    {
-        static bool Prefix(string typeName, ref Type __result)
-        {
-            if (typeName.StartsWith("Llong."))
-            {
-                 __result = Core.GetType(typeName);
-                // MelonLogger.Msg($"[Llong] Did we get a type for {typeName}? {(__result == null ? "no" : "yes")}");
-                return false;
-            }
-
-            // Do normal type lookup
-            __result = null;
-            return true;
-        }
-    }
-
-    [HarmonyPatch(typeof(CharacterSelectController), "GetCharacters")]
-    static class CharacterSelectController_GetCharacters_Patch
-    {
-        static void Postfix(Dictionary<Type, bool> ____characters)
-        {
-            MelonLogger.Msg("[Llong] Allowing Llong to be selected");
-            ____characters[typeof(LlongCharacter)] = true;
-        }
-    }
-
-    [HarmonyPatch(typeof(SaveManager), "LoadSaveFromFile")]
-    static class SaveManager_LoadSaveFromFile_Patch
-    {
-        static void Postfix(SaveFile ____saveFile)
-        {
-            if (!____saveFile.CharacterHighestCompletedAscensions.ContainsKey(typeof(LlongCharacter)))
-            {
-                MelonLogger.Msg("[Llong] Added Llong to the save");
-                SaveManager.AddCharacterToUnlockedCharacters(typeof(LlongCharacter));
-            }
-            else
-            {
-                MelonLogger.Msg("[Llong] Saw Llong in the save");
-            }
-        }
-    }
-
-    // The game crashes on stage 3+ if you're playing a character with no tooltips!
-    [HarmonyPatch(typeof(TooltipController), "GetAppropriateToolTips")]
-    static class TooltipController_GetAppropriateToolTips_Patch
-    {
-        static void Prefix(ref Dictionary<Type, List<ValueTuple<string, Emotions>>> ____characterSpecificToolTips)
-        {
-            // MelonLogger.Msg("[Llong] Adding Llong tooltips");
-            if (!____characterSpecificToolTips.ContainsKey(typeof(LlongCharacter)))
-            {
-                ____characterSpecificToolTips.Add(typeof(LlongCharacter), [
-                    new ValueTuple<string, Emotions>("Stretched letters are ALWAYS ignored when checking the dictionary", Core.EmotionLlongFlip),
-                    new ValueTuple<string, Emotions>("Numbers don't count stretched letters", Core.EmotionLlongFlip)
-                ]);
-            }
-        }
-    }
-
-
-    [HarmonyPatch(typeof(IDCard))]
-    [HarmonyPatch(MethodType.Constructor)]
-    static class IDCard_CTOR_Patch
-    {
-        static void Postfix(IDCard __instance)
-        {
-            // MelonLogger.Msg("[Llong] Adding Llong's ID card");
-            __instance.SpriteData.Add(new LlongItemData(ItemSpriteUsage.AvocadoMushy, "LlongIDCard"));
-            __instance.CharacterToSpriteUsage.Add(typeof(LlongCharacter), ItemSpriteUsage.AvocadoMushy);
-        }
-    }
-
-    [HarmonyPatch(typeof(SaveFileUtility), "GetSaveFileFromFile")]
-    static class SaveFileUtility_GetSaveFileFromFile_Patch
-    {
-        static void Postfix(int slotIndex, ref SaveFile __result)
-        {
-            int highestLlongCompletedAscension = -1;
-            if (__result != null && __result.CharacterHighestCompletedAscensions.ContainsKey(typeof(LlongCharacter)))
-            {
-                highestLlongCompletedAscension = __result.CharacterHighestCompletedAscensions[typeof(LlongCharacter)];
-            }
-            if (highestLlongCompletedAscension == -1)
-            {
-                // Llong is either missing or just got reset to -1. Check to see if there's a slot_X_llong.sav to recover from
-                FallbackSaveUtility fallback = new FallbackSaveUtility(slotIndex);
-                fsData fallbackData = fallback.Load();
-                if (fallbackData != null && fallbackData.AsDictionary.ContainsKey("LlongHighestCompletedAscension") && fallbackData.AsDictionary["LlongHighestCompletedAscension"].IsInt64)
-                {
-                    __result.CharacterHighestCompletedAscensions[typeof(LlongCharacter)] = (int)fallbackData.AsDictionary["LlongHighestCompletedAscension"].AsInt64;
-                    MelonLogger.Msg($"[Llong] Recovered crown level: {__result.CharacterHighestCompletedAscensions[typeof(LlongCharacter)]}");
-                }
-                else
-                {
-                    MelonLogger.Msg($"[Llong] No crown data to recover");
-                }
-            }
-        }
-    }
-
-    [HarmonyPatch(typeof(SaveManager), "SaveFileToFile")]
-    static class SaveManager_SaveFileToFile_Patch
-    {
-        static void Postfix(int slotIndex)
-        {
-            FallbackSaveUtility fallback = new FallbackSaveUtility(slotIndex);
-            fallback.Save();
         }
     }
 }

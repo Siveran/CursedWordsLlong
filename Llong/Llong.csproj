@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>netstandard2.1</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
@@ -384,6 +384,8 @@
 		<Compile Include="LlongCharacter.cs" />
 		<Compile Include="FallbackSaveData.cs" />
 		<Compile Include="FallbackSaveUtility.cs" />
+		<Compile Include="Multiplayer.cs" />
+		<Compile Include="CorePatches.cs" />
 		<Compile Include="Unlocks\LlongItemData.cs" />
 		<Compile Include="Unlocks\Spaghetti.cs" />
 		<Compile Include="Stretchability.cs" />
@@ -395,6 +397,7 @@
 		<Compile Include="Unlocks\FigureEightKnot.cs" />
 		<Compile Include="Unlocks\SnoozedAlarmClock.cs" />
 		<Compile Include="Unlocks\YoYo.cs" />
+		<Compile Include="Util.cs" />
 		<Content Include="Directory.Build.props" />
 	</ItemGroup>
 	

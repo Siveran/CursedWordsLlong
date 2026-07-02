@@ -1,14 +1,11 @@
-﻿using MelonLoader;
-using nickeltin.SDF.Runtime;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Xml.Linq;
-using Unity.VisualScripting;
+﻿using nickeltin.SDF.Runtime;
 using UnityEngine;
 
 namespace Llong.Unlocks
 {
+    // Llong's items' sprites/SDFs are stored in a different place than normal items.
+    // We set things up so the vanilla logic will use Blackhole's sprite if the mod fails to load the custom sprite.
+    // See ItemSpriteData_GetSprite_Patch or ItemSpriteData_GetSDFSprite_Patch in Core.cs for how these are referenced!
     class LlongItemData : ItemSpriteData
     {
         public string TrueName;
@@ -23,15 +20,11 @@ namespace Llong.Unlocks
 
             if (Core.ItemSprites.ContainsKey(assetPath))
             {
-                //MelonLogger.Msg($"[Llong] Grabbing sprite for {assetPath}");
                 this.TrueSprite = Core.ItemSprites[assetPath];
-                //MelonLogger.Msg(data.ItemSprite);
             }
             if (Core.ItemSdfs.ContainsKey(assetPath))
             {
-                //MelonLogger.Msg($"[Llong] Grabbing SDF for {assetPath}");
                 this.TrueSDF = Core.ItemSdfs[assetPath];
-                //MelonLogger.Msg(data.ItemSDFSprite);
             }
         }
     }

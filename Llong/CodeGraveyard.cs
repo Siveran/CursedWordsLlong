@@ -352,5 +352,54 @@ namespace Llong
             }
         }
         */
+
+        // This was the old way of adding Llong to multiplayer, but multiplayer stores/accesses custom characters differently now.
+        /*
+        [HarmonyPatch(typeof(RunProgress), "GetCurrentBossDraft")]
+        public static class RunProgress_GetCurrentBossDraft_Patch
+        {
+            public static bool Prefix(RunProgress __instance, ref BossDraft __result)
+            {
+                Type ReceivedInfo = Type.GetType("CWMultiplayer.ReceivedInfo");
+                if (ReceivedInfo == null)
+                {
+                    // No multiplayer mod. Continue as normal!
+                    return true;
+                }
+
+                bool hasOpponent = (bool)ReceivedInfo.GetField("hasOpponent").GetValue(null);
+
+                if (!hasOpponent)
+                {
+                    // The multiplayer mod is loaded, but this isn't a multiplayer match.
+                    return true;
+                }
+
+                Character foeCharacter = (Character)ReceivedInfo.GetField("foeCharacter").GetValue(null);
+
+                if (foeCharacter == null || foeCharacter.GetType() != typeof(LlongCharacter))
+                {
+                    // The multiplayer mod is active, but Llong isn't the opponent
+                    return true;
+                }
+
+                // If we're here, we're facing Llong
+                BossModifier bossModifier = new LlongBoss();
+                __result = __instance.BossDrafts[__instance.CurrentStage - 1];
+                __result.AvailableBosses.Clear();
+                __result.AvailableBosses.Add(bossModifier);
+                __result.AvailableBosses.Add(bossModifier);
+                return false;
+            }
+        }
+        */
+        /*
+        BossModifier bossModifier = new LlongBoss();
+        __result = __instance.BossDrafts[__instance.CurrentStage - 1];
+        __result.AvailableBosses.Clear();
+        __result.AvailableBosses.Add(bossModifier);
+        __result.AvailableBosses.Add(bossModifier);
+        return false;
+        */
     }
 }
