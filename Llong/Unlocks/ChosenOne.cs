@@ -44,7 +44,7 @@ namespace Llong.Unlocks
             }
         }
 
-        public override void ApplyWordBonus(ScoreCalcVizInfo step, int gridNumber, List<Tile> tiles, List<string> words, List<TileSelection> selections, List<HistoricWord> previousWords, GridData gridData)
+        public override void ApplyWordBonus(ScoreCalcVizInfo step, int gridNumber, List<Tile> tiles, List<string> words, List<TileSelection> selections, List<HistoricWord> previousWords, GridData gridData, List<Tile> allTiles = null)
         {
             if (this.ChosenLetter == "")
             {

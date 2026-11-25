@@ -9,7 +9,7 @@ namespace Llong.Unlocks
     {
         public FigureEightKnot()
         {
-            Name = "Figure Eight Knot";
+            Name = "Tangled Rope";
             SpriteData.Add(new LlongItemData(ItemSpriteUsage.Default, "knot"));
             Rarity = ItemRarity.Common;
             Cost = 16;
@@ -41,6 +41,10 @@ namespace Llong.Unlocks
                     if (newNumber > 999999)
                     {
                         newNumber = 999999;
+                    }
+                    if (newNumber < -999999)
+                    {
+                        newNumber = -999999;
                     }
                     tile.SetNumber(newNumber);
                 }

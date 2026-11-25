@@ -8,15 +8,11 @@ namespace Llong.Unlocks
     {
         public YoYo()
         {
-            Name = "Yo-Yo";
+            Name = "Spinny Doodad";
             SpriteData.Add(new LlongItemData(ItemSpriteUsage.Default, "yoyo"));
             Rarity = ItemRarity.Common;
             Cost = 8;
-            Tags =
-                [
-                    ItemTag.NumbersBuild,
-                    ItemTag.CardsBuild
-                ];
+            Tags = [];
             DependencyTags = [];
             UpgradeableComponents = [new UpgradeableComponent(1, 1, 1)];
             ItemFunctionTags = [ItemFunctionTag.Tech];

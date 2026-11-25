@@ -13,7 +13,7 @@ namespace Llong
         // as every inventoryCache is used before the next one is generated. I think.
         static public int CurrentStretchability;
 
-        private const int MAX_STRETCHABILITY_CACHE = 3;
+        private const int MAX_STRETCHABILITY_CACHE = 16;
         private static Dictionary<InventoryCache, int> StretchabilityCache = [];
         private static readonly List<InventoryCache> InventoryCaches = [];
         private static int NextIndexToSet = 0; // increments 0 to (MAX_STRETCHABILITY_CACHE-1)
@@ -60,7 +60,7 @@ namespace Llong
             int currentStretch = 0;
             for (int i = 0; i < tiles.Count; i++)
             {
-                if (previousTile != null && previousTile.GetStringRepresentation(false) == tiles[i].GetStringRepresentation(false))
+                if (previousTile != null && IsRepeat(previousTile, tiles[i]))
                 {
                     // Repeat detected! Try to stretch.
                     if (currentStretch < stretchability)
@@ -94,7 +94,7 @@ namespace Llong
             int stretchedLength = 0;
             for (int i = 0; i < tiles.Count; i++)
             {
-                string currentTileString = tiles[i].GetStringRepresentation(false);
+                string currentTileString = GetCaseSensitiveStringRepresentation(tiles[i]);
                 if (previousTileString == currentTileString)
                 {
                     if (currentStretch < stretchability)
@@ -149,6 +149,16 @@ namespace Llong
 
             return stretchability;
         }
+
+        static public bool IsRepeat(Tile a, Tile b)
+        {
+            return a.GetStringRepresentation(false) == b.GetStringRepresentation(false) && a.IsLowerCase == b.IsLowerCase;
+        }
+
+        static public string GetCaseSensitiveStringRepresentation(Tile tile)
+        {
+            return tile.IsLowerCase ? tile.GetStringRepresentation(false).ToLower() : tile.GetStringRepresentation(false).ToUpper();
+        }
     }
 
     // Normally, InventoryCache is used to check the items currently applying to the word submission.
@@ -158,7 +168,7 @@ namespace Llong
     // Hook into InventoryCache's constructor so we count stretchability at the right time
     [HarmonyPatch(typeof(InventoryCache))]
     [HarmonyPatch(MethodType.Constructor)]
-    [HarmonyPatch([typeof(IEnumerable<Tile>)])]
+    [HarmonyPatch([typeof(IEnumerable<Tile>), typeof(GridData)])]
     class InventoryCache_CTOR_Patch
     {
         static void Postfix(IEnumerable<Tile> currentWordTiles, InventoryCache __instance)
@@ -172,7 +182,7 @@ namespace Llong
                     allItems.Add(tile.ScatteredItem);
                 }
             }
-            // Get items in Snapshot, Frankenstein, and Random Access Memory
+            // Get items in Snapshot, Frankenstein, Random Access Memory, and Ice Cube
             allItems = Util.UnpackItems(allItems);
 
             var stretchability = Stretchability.GetStretchabilityFromItems(allItems);
@@ -182,12 +192,13 @@ namespace Llong
     }
 
     // Hook into the places InventoryCache is used so we can apply stretching at the right time
+    /*
     [HarmonyPatch(typeof(Vocabulary), "IsWordContainedInList")]
     class Vocabulary_IsWordContainedInList_Patch
     {
-        static void Prefix(ref List<Tile> tiles, InventoryCache inventoryCache)
+        static void Prefix(ref List<Tile> tilesInWord, InventoryCache inventoryCache)
         {
-            tiles = Stretchability.ApplyStretching(tiles, Stretchability.GetStretchability(inventoryCache));
+            tilesInWord = Stretchability.ApplyStretching(tilesInWord, Stretchability.GetStretchability(inventoryCache));
         }
     }
 
@@ -199,6 +210,17 @@ namespace Llong
             tiles = Stretchability.ApplyStretching(tiles, Stretchability.GetStretchability(inventoryCache));
         }
     }
+    */
+
+    [HarmonyPatch(typeof(Vocabulary), "GetValidUpperAndLowerCaseWordsFromTiles")]
+    class Vocabulary_GetValidUpperAndLowerCaseWordsFromTiles_Patch
+    {
+        static void Prefix(ref IEnumerable<Tile> tiles, GridData gridData)
+        {
+            InventoryCache inventoryCache = new InventoryCache(tiles, gridData);
+            tiles = Stretchability.ApplyStretching(tiles.ToList<Tile>(), Stretchability.GetStretchability(inventoryCache));
+        }
+    }
 
     // Honeypot is scary
     // It should never cut submissions on letters mid-stretch. As an example, if you have Yo-Yo and Honeypot,
@@ -207,13 +229,15 @@ namespace Llong
     [HarmonyPatch(typeof(Vocabulary), "GetConcatenatedValidWordsFromTiles")]
     class Vocabulary_GetConcatenatedValidWordsFromTiles_Patch
     {
-        public static bool Prefix(List<Tile> tiles, List<BossModifier> bossModifiers, out List<string> __result)
+        public static bool Prefix(List<Tile> tiles, GridData gridData, List<BossModifier> bossModifiers, out SubmittedWords __result)
         {
-            InventoryCache inventoryCache = new InventoryCache(tiles);
+            MelonLogger.Msg("[Llong] Vocabulary_GetConcatenatedValidWordsFromTiles_Patch");
+            InventoryCache inventoryCache = new InventoryCache(tiles, gridData);
             if (Stretchability.GetStretchability(inventoryCache) == 0)
             {
+                MelonLogger.Msg("[Llong] 0 stretchability");
                 // There's no stretchability in play. Just do the normal logic.
-                __result = [];
+                __result = null;
                 return true;
             }
             inventoryCache.PertinentAccumulatorWords.Clear();
@@ -221,36 +245,48 @@ namespace Llong
             List<string> secondWords = inventoryCache.PertinentAccumulatorPairs.Select(pair => pair[1]).ToList();
 
             // 1. Prioritize getting a pair of words that have an effect
-            MethodInfo tryGetAccumulatorWordFromTiles = AccessTools.Method(typeof(Vocabulary), "TryGetAccumulatorWordFromTiles", [typeof(InventoryCache), typeof(IEnumerable<Tile>)]);
+            MethodInfo tryGetAccumulatorWordFromTiles = AccessTools.Method(typeof(Vocabulary), "TryGetAccumulatorWordFromTiles", [typeof(InventoryCache), typeof(IEnumerable<Tile>), typeof(GridData)]);
             foreach (string firstWord in firstWords)
             {
                 inventoryCache.PertinentAccumulatorWords.Clear();
                 inventoryCache.PertinentAccumulatorWords.Add(firstWord);
                 int stretchedLength = Stretchability.GetStretchedLength(tiles, inventoryCache, firstWord.Length);
                 List<Tile> tilePortion = [.. tiles.Take(stretchedLength)];
-                if (tryGetAccumulatorWordFromTiles.Invoke(null, [inventoryCache, tilePortion]) is string firstFoundWord)
+                if (tryGetAccumulatorWordFromTiles.Invoke(null, [inventoryCache, tilePortion, gridData]) is string firstFoundWord)
                 {
                     int index = firstWords.IndexOf(firstWord);
                     inventoryCache.PertinentAccumulatorWords.Clear();
                     inventoryCache.PertinentAccumulatorWords.Add(secondWords[index]);
                     tilePortion = [.. tiles.Skip(stretchedLength)];
-                    if (tryGetAccumulatorWordFromTiles.Invoke(null, [inventoryCache, tilePortion]) is string secondFoundWord)
+                    if (tryGetAccumulatorWordFromTiles.Invoke(null, [inventoryCache, tilePortion, gridData]) is string secondFoundWord)
                     {
-                        __result = [ firstFoundWord, secondFoundWord ];
+                        MelonLogger.Msg("[Llong] Accumulator pair!");
+                        __result = new SubmittedWords
+                                {
+                                        Words = new List<string> { firstFoundWord, secondFoundWord },
+                                        WordTiles = new List<List<Tile>>
+                                    {
+                                        tiles.Take(stretchedLength).ToList<Tile>(),
+                                        tiles.Skip(stretchedLength).ToList<Tile>()
+                                    }
+                                };
                         return false;
                     }
                 }
             }
-            
-            // 2. Next, prioritize getting one word (note that this follows vanilla logic. As of July 1, 2026, I intentionally don't add single accumulator words back to the pool here)
-            string validWordFromTiles = Vocabulary.GetValidWordFromTiles(tiles, bossModifiers, inventoryCache);
-            if (validWordFromTiles != null)
+            MelonLogger.Msg("[Llong] No accumulator pair");
+
+            // 2. Next, prioritize getting one (or upper+lowercase) word(s) (note that this follows vanilla logic. As of July 1, 2026, I intentionally don't add single accumulator words back to the pool here)
+            SubmittedWords validUpperAndLowerCaseWordsFromTiles = Vocabulary.GetValidUpperAndLowerCaseWordsFromTiles(tiles, bossModifiers, gridData, inventoryCache);
+            if (validUpperAndLowerCaseWordsFromTiles != null)
             {
-                __result = [ validWordFromTiles ];
+                MelonLogger.Msg("[Llong] Single word!");
+                __result = validUpperAndLowerCaseWordsFromTiles;
                 return false;
             }
             inventoryCache.PertinentAccumulatorWords.Clear();
-            
+            MelonLogger.Msg("[Llong] No single word");
+
             // 3. Next, get ANY two words
             // Unstretch the word to get the unstretched length
             List<Tile> unstretched = Stretchability.ApplyStretching(tiles, inventoryCache);
@@ -259,19 +295,27 @@ namespace Llong
                 // Cut the word after each set of stretched letters
                 int cutIndex = Stretchability.GetStretchedLength(tiles, inventoryCache, i);
                 List<Tile> tilePortion = [.. tiles.Take(cutIndex)];
-                string firstValidWord = Vocabulary.GetValidWordFromTiles(tilePortion, bossModifiers, inventoryCache);
-                if (firstValidWord != null)
+                SubmittedWords firstValidWords = Vocabulary.GetValidUpperAndLowerCaseWordsFromTiles(tilePortion, bossModifiers, gridData, inventoryCache);
+                if (firstValidWords != null)
                 {
                     tilePortion = [.. tiles.Skip(cutIndex)];
-                    string secondValidWord = Vocabulary.GetValidWordFromTiles(tilePortion, bossModifiers, inventoryCache);
-                    if (secondValidWord != null)
+                    SubmittedWords secondValidWords = Vocabulary.GetValidUpperAndLowerCaseWordsFromTiles(tilePortion, bossModifiers, gridData, inventoryCache);
+                    if (secondValidWords != null)
                     {
-                        __result = [ firstValidWord, secondValidWord ];
+                        MelonLogger.Msg("[Llong] Honeypot!");
+                        __result = new SubmittedWords
+                        {
+                            Words = [.. firstValidWords.Words.Concat(secondValidWords.Words)],
+                            WordTiles = [.. firstValidWords.WordTiles.Concat(secondValidWords.WordTiles)],
+                            LowercaseWords = [.. firstValidWords.LowercaseWords.Concat(secondValidWords.LowercaseWords)],
+                            LowercaseWordTiles = [.. firstValidWords.LowercaseWordTiles.Concat(secondValidWords.LowercaseWordTiles)]
+                        };
                         return false;
                     }
                 }
             }
             __result = null;
+            MelonLogger.Msg("[Llong] No honeypot");
             return false;
         }
     }
@@ -289,7 +333,7 @@ namespace Llong
     [HarmonyPatch(typeof(Tile), "IsDisplayingAsVariableLetter")]
     class Tile_IsDisplayingAsVariableLetter_Patch
     {
-        static bool Prefix(ref bool __result, Tile __instance, TileSelectionManager tileSelectionManager = null)
+        static bool Prefix(ref bool __result, Tile __instance, TileSelectionManager tileSelectionManager = null, List<Tile> wordTiles = null)
         {
             if (__instance.MyGlyphType == GlyphType.ScatteredItem)
             {
@@ -324,7 +368,7 @@ namespace Llong
                 return true;
             }
 
-            List<Tile> selectedTiles = tileSelectionManager.GetTilesFromSelectedTiles();
+            List<Tile> selectedTiles = (wordTiles != null && wordTiles.Count() > 0) ? wordTiles : tileSelectionManager.GetTilesFromSelectedTiles();
             if (selectedTiles.Contains(__instance))
             {
                 // This tile is selected. Determine its wobbliness based on its position in the word.
@@ -332,7 +376,7 @@ namespace Llong
                 int currentStretch = 0;
                 for (int i = 0; i < selectedTiles.Count; i++)
                 {
-                    if (previousTile != null && previousTile.GetStringRepresentation(false) == selectedTiles[i].GetStringRepresentation(false))
+                    if (previousTile != null && Stretchability.IsRepeat(previousTile, selectedTiles[i]))
                     {
                         // Repeat detected! Try to stretch.
                         if (currentStretch < stretchability)
@@ -373,9 +417,9 @@ namespace Llong
             }
             else
             {
-                string lastTileString = selectedTiles[^1].GetStringRepresentation(false);
+                string lastTileString = Stretchability.GetCaseSensitiveStringRepresentation(selectedTiles[^1]);
 
-                if (lastTileString != __instance.GetStringRepresentation(false))
+                if (lastTileString != Stretchability.GetCaseSensitiveStringRepresentation(__instance))
                 {
                     // The last tile of the selected word doesn't match this unselected tile. Do normal logic.
                     return true;
@@ -385,7 +429,7 @@ namespace Llong
                 int repeatCount = 0;
                 for (int i = selectedTiles.Count - 2; i >= 0; i--)
                 {
-                    if (selectedTiles[i].GetStringRepresentation(false) == lastTileString)
+                    if (Stretchability.GetCaseSensitiveStringRepresentation(selectedTiles[i]) == lastTileString)
                     {
                         if (repeatCount == stretchability)
                         {

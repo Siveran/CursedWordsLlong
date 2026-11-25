@@ -10,6 +10,7 @@
             Item ramItem = allItems.Find((Item item) => item is RandomAccessMemory);
             Item snapshotItem = allItems.Find((Item item) => item is Snapshot);
             List<Item> frankensteinItems = allItems.Where((Item item) => item is Frankenstein).ToList();
+            Item iceCubeItem = allItems.Find((Item item) => item is IceCube);
             if (ramItem != null)
             {
                 RandomAccessMemory randomAccessMemory = ramItem as RandomAccessMemory;
@@ -28,6 +29,15 @@
                 Frankenstein frankenstein = frankensteinItem as Frankenstein;
                 allItems.AddRange(frankenstein.StitchedItems);
             }
+            if (iceCubeItem != null)
+            {
+                IceCube iceCube = iceCubeItem as IceCube;
+                if (iceCube.FrozenItem != null)
+                {
+                    allItems.Add(iceCube.FrozenItem);
+                }
+            }
+
             return allItems;
         }
     }

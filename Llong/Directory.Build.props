@@ -1,5 +1,5 @@
 <Project>
   <PropertyGroup>
-    <GamePath>F:\Program Files (x86)\Steam\steamapps\common\Cursed Words</GamePath>
+    <GamePath>F:\SteamLibrary\steamapps\common\Cursed Words</GamePath>
   </PropertyGroup>
 </Project>
