@@ -8,8 +8,8 @@ namespace Llong.Unlocks
     {
         public YoYo()
         {
-            Name = "Spinny Doodad";
-            SpriteData.Add(new LlongItemData(ItemSpriteUsage.Default, "yoyo"));
+            Name = "Otter";
+            SpriteData.Add(new LlongItemData(ItemSpriteUsage.Default, "otter"));
             Rarity = ItemRarity.Common;
             Cost = 8;
             Tags = [];
@@ -17,6 +17,7 @@ namespace Llong.Unlocks
             UpgradeableComponents = [new UpgradeableComponent(1, 1, 1)];
             ItemFunctionTags = [ItemFunctionTag.Tech];
             RelevantColours = [];
+            IsAnimal = true;
         }
         public override string GetDescription()
         {
@@ -32,7 +33,7 @@ namespace Llong.Unlocks
     {
         public YoYoUnlock()
         {
-            Name = "Repetition";
+            Name = "Long Animal";
             SteamAchievementName = "ACH_INVITATION_ONLY";
             TypeOfItemUnlocked = typeof(YoYo);
             IsCrownReward = true;

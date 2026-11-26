@@ -191,34 +191,70 @@ namespace Llong
         }
     }
 
-    // Hook into the places InventoryCache is used so we can apply stretching at the right time
-    /*
-    [HarmonyPatch(typeof(Vocabulary), "IsWordContainedInList")]
-    class Vocabulary_IsWordContainedInList_Patch
-    {
-        static void Prefix(ref List<Tile> tilesInWord, InventoryCache inventoryCache)
-        {
-            tilesInWord = Stretchability.ApplyStretching(tilesInWord, Stretchability.GetStretchability(inventoryCache));
-        }
-    }
-
-    [HarmonyPatch(typeof(Vocabulary), "TryGetAccumulatorWordFromTiles")]
-    class Vocabulary_TryGetAccumulatorWordFromTiles_Patch
-    {
-        static void Prefix(ref List<Tile> tiles, InventoryCache inventoryCache)
-        {
-            tiles = Stretchability.ApplyStretching(tiles, Stretchability.GetStretchability(inventoryCache));
-        }
-    }
-    */
-
     [HarmonyPatch(typeof(Vocabulary), "GetValidUpperAndLowerCaseWordsFromTiles")]
     class Vocabulary_GetValidUpperAndLowerCaseWordsFromTiles_Patch
     {
-        static void Prefix(ref IEnumerable<Tile> tiles, GridData gridData)
+        class GetValidUpperAndLowerCaseWordsFromTiles_State
+        {
+            public List<Tile> AllTiles;
+            public int Stretchability;
+        }
+
+        static void Prefix(ref IEnumerable<Tile> tiles, GridData gridData, out GetValidUpperAndLowerCaseWordsFromTiles_State __state)
         {
             InventoryCache inventoryCache = new InventoryCache(tiles, gridData);
-            tiles = Stretchability.ApplyStretching(tiles.ToList<Tile>(), Stretchability.GetStretchability(inventoryCache));
+            __state = new GetValidUpperAndLowerCaseWordsFromTiles_State
+            {
+                AllTiles = [.. tiles],
+                Stretchability = Stretchability.GetStretchability(inventoryCache)
+            };
+            tiles = Stretchability.ApplyStretching(__state.AllTiles, __state.Stretchability);
+        }
+
+        static void Postfix(ref SubmittedWords __result, GetValidUpperAndLowerCaseWordsFromTiles_State __state)
+        {
+            if (__state.Stretchability == 0 || __result == null)
+            {
+                return;
+            }
+            int lowercaseHead = 0;
+            int uppercaseHead = 0;
+            int currentStretch = 0;
+            Tile previousTile = null;
+            for (int head = 0; head < __state.AllTiles.Count(); head++)
+            {
+                if (__state.AllTiles[head].IsLowerCase)
+                {
+                    if (previousTile != null && Stretchability.IsRepeat(previousTile, __state.AllTiles[head]) && currentStretch < __state.Stretchability)
+                    {
+                        currentStretch++;
+                        // Add this tile to the lowercase word's tiles
+                        //MelonLogger.Msg("[Llong] Adding lowercase tile: " + __state.AllTiles[head].GetStringRepresentation(false));
+                        __result.LowercaseWordTiles[0].Insert(lowercaseHead, __state.AllTiles[head]);
+                    }
+                    else
+                    {
+                        currentStretch = 0;
+                    }
+                    lowercaseHead++;
+                }
+                else
+                {
+                    if (previousTile != null && Stretchability.IsRepeat(previousTile, __state.AllTiles[head]) && currentStretch < __state.Stretchability)
+                    {
+                        currentStretch++;
+                        // Add this tile to the uppercase word's tiles
+                        //MelonLogger.Msg("[Llong] Adding uppercase tile: " + __state.AllTiles[head].GetStringRepresentation(false));
+                        __result.WordTiles[0].Insert(uppercaseHead, __state.AllTiles[head]);
+                    }
+                    else
+                    {
+                        currentStretch = 0;
+                    }
+                    uppercaseHead++;
+                }
+                previousTile = __state.AllTiles[head];
+            }
         }
     }
 
@@ -231,11 +267,11 @@ namespace Llong
     {
         public static bool Prefix(List<Tile> tiles, GridData gridData, List<BossModifier> bossModifiers, out SubmittedWords __result)
         {
-            MelonLogger.Msg("[Llong] Vocabulary_GetConcatenatedValidWordsFromTiles_Patch");
+            //MelonLogger.Msg("[Llong] Vocabulary_GetConcatenatedValidWordsFromTiles_Patch");
             InventoryCache inventoryCache = new InventoryCache(tiles, gridData);
             if (Stretchability.GetStretchability(inventoryCache) == 0)
             {
-                MelonLogger.Msg("[Llong] 0 stretchability");
+                //MelonLogger.Msg("[Llong] 0 stretchability");
                 // There's no stretchability in play. Just do the normal logic.
                 __result = null;
                 return true;
@@ -243,6 +279,7 @@ namespace Llong
             inventoryCache.PertinentAccumulatorWords.Clear();
             List<string> firstWords = inventoryCache.PertinentAccumulatorPairs.Select(pair => pair[0]).ToList();
             List<string> secondWords = inventoryCache.PertinentAccumulatorPairs.Select(pair => pair[1]).ToList();
+            int stretchability = Stretchability.GetStretchability(inventoryCache);
 
             // 1. Prioritize getting a pair of words that have an effect
             MethodInfo tryGetAccumulatorWordFromTiles = AccessTools.Method(typeof(Vocabulary), "TryGetAccumulatorWordFromTiles", [typeof(InventoryCache), typeof(IEnumerable<Tile>), typeof(GridData)]);
@@ -250,7 +287,7 @@ namespace Llong
             {
                 inventoryCache.PertinentAccumulatorWords.Clear();
                 inventoryCache.PertinentAccumulatorWords.Add(firstWord);
-                int stretchedLength = Stretchability.GetStretchedLength(tiles, inventoryCache, firstWord.Length);
+                int stretchedLength = Stretchability.GetStretchedLength(tiles, stretchability, firstWord.Length);
                 List<Tile> tilePortion = [.. tiles.Take(stretchedLength)];
                 if (tryGetAccumulatorWordFromTiles.Invoke(null, [inventoryCache, tilePortion, gridData]) is string firstFoundWord)
                 {
@@ -260,7 +297,7 @@ namespace Llong
                     tilePortion = [.. tiles.Skip(stretchedLength)];
                     if (tryGetAccumulatorWordFromTiles.Invoke(null, [inventoryCache, tilePortion, gridData]) is string secondFoundWord)
                     {
-                        MelonLogger.Msg("[Llong] Accumulator pair!");
+                        //MelonLogger.Msg("[Llong] Accumulator pair!");
                         __result = new SubmittedWords
                                 {
                                         Words = new List<string> { firstFoundWord, secondFoundWord },
@@ -274,26 +311,26 @@ namespace Llong
                     }
                 }
             }
-            MelonLogger.Msg("[Llong] No accumulator pair");
+            //MelonLogger.Msg("[Llong] No accumulator pair");
 
             // 2. Next, prioritize getting one (or upper+lowercase) word(s) (note that this follows vanilla logic. As of July 1, 2026, I intentionally don't add single accumulator words back to the pool here)
             SubmittedWords validUpperAndLowerCaseWordsFromTiles = Vocabulary.GetValidUpperAndLowerCaseWordsFromTiles(tiles, bossModifiers, gridData, inventoryCache);
             if (validUpperAndLowerCaseWordsFromTiles != null)
             {
-                MelonLogger.Msg("[Llong] Single word!");
+                //MelonLogger.Msg("[Llong] Single word!");
                 __result = validUpperAndLowerCaseWordsFromTiles;
                 return false;
             }
             inventoryCache.PertinentAccumulatorWords.Clear();
-            MelonLogger.Msg("[Llong] No single word");
+            //MelonLogger.Msg("[Llong] No single word");
 
             // 3. Next, get ANY two words
             // Unstretch the word to get the unstretched length
-            List<Tile> unstretched = Stretchability.ApplyStretching(tiles, inventoryCache);
+            List<Tile> unstretched = Stretchability.ApplyStretching(tiles, stretchability);
             for (int i = 1; i < unstretched.Count<Tile>(); i++)
             {
                 // Cut the word after each set of stretched letters
-                int cutIndex = Stretchability.GetStretchedLength(tiles, inventoryCache, i);
+                int cutIndex = Stretchability.GetStretchedLength(tiles, stretchability, i);
                 List<Tile> tilePortion = [.. tiles.Take(cutIndex)];
                 SubmittedWords firstValidWords = Vocabulary.GetValidUpperAndLowerCaseWordsFromTiles(tilePortion, bossModifiers, gridData, inventoryCache);
                 if (firstValidWords != null)
@@ -302,7 +339,7 @@ namespace Llong
                     SubmittedWords secondValidWords = Vocabulary.GetValidUpperAndLowerCaseWordsFromTiles(tilePortion, bossModifiers, gridData, inventoryCache);
                     if (secondValidWords != null)
                     {
-                        MelonLogger.Msg("[Llong] Honeypot!");
+                        //MelonLogger.Msg("[Llong] Honeypot!");
                         __result = new SubmittedWords
                         {
                             Words = [.. firstValidWords.Words.Concat(secondValidWords.Words)],
@@ -310,13 +347,29 @@ namespace Llong
                             LowercaseWords = [.. firstValidWords.LowercaseWords.Concat(secondValidWords.LowercaseWords)],
                             LowercaseWordTiles = [.. firstValidWords.LowercaseWordTiles.Concat(secondValidWords.LowercaseWordTiles)]
                         };
+
+                        //MelonLogger.Msg("[Llong] Words: " + __result.Words.ToString() + " | Lowercase Words: " + __result.Words.ToString());
                         return false;
                     }
                 }
             }
             __result = null;
-            MelonLogger.Msg("[Llong] No honeypot");
+            //MelonLogger.Msg("[Llong] No honeypot");
             return false;
+        }
+    }
+
+
+    [HarmonyPatch(typeof(Owl), "ApplyWordBonus")]
+    class Owl_ApplyWordBonus_Patch
+    {
+        static void Prefix(ScoreCalcVizInfo step, int gridNumber, List<Tile> tiles, List<string> words, List<TileSelection> selections, List<HistoricWord> previousWords, GridData gridData, List<Tile> allTiles)
+        {
+            MelonLogger.Msg("[Owl] ApplyWordBonus");
+            for (int tileIndex = 0; tileIndex < tiles.Count(); tileIndex++)
+            {
+                MelonLogger.Msg("[Owl] " + tileIndex + " | " + (tiles[tileIndex].IsCursed(allTiles) ? "Cursed" : "Normal") + " | " + tiles[tileIndex].GetStringRepresentation(false) + (tiles[tileIndex].IsLowerCase ? " (lowercase)" : ""));
+            }
         }
     }
 
@@ -335,6 +388,7 @@ namespace Llong
     {
         static bool Prefix(ref bool __result, Tile __instance, TileSelectionManager tileSelectionManager = null, List<Tile> wordTiles = null)
         {
+            MelonLogger.Msg("[Llong] IsDisplayingAsVariableLetter");
             if (__instance.MyGlyphType == GlyphType.ScatteredItem)
             {
                 // Items don't like wobbling :( Just use normal logic.

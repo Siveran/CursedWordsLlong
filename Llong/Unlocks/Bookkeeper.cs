@@ -7,7 +7,7 @@
 		public Bookkeeper()
 		{
             Name = "Bookkeeper";
-            SpriteData.Add(new LlongItemData(ItemSpriteUsage.Default, "books"));
+            SpriteData.Add(new LlongItemData(ItemSpriteUsage.Default, "shush"));
             Rarity = ItemRarity.Legendary;
             Cost = 30;
             Tags = [];

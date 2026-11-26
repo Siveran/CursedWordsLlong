@@ -1,11 +1,11 @@
-﻿using Llong.Unlocks;
+﻿using FullSerializer;
+using HarmonyLib;
+using Llong.Unlocks;
 using MelonLoader;
 using nickeltin.SDF.Runtime;
 using System.Reflection;
 using UnityEngine;
-using HarmonyLib;
 using UnityEngine.UI;
-using FullSerializer;
 
 namespace Llong
 {
@@ -191,6 +191,11 @@ namespace Llong
                     new ValueTuple<string, Emotions>("Stretched letters are ALWAYS ignored when checking the dictionary", Core.EmotionLlongFlip),
                     new ValueTuple<string, Emotions>("Numbers don't count stretched letters", Core.EmotionLlongFlip)
                 ]);
+                
+                if (SaveManager.IsBulkUnlockUnlocked(typeof(LowercaseLettersUnlock)))
+                {
+                    ____characterSpecificToolTips.Add(typeof(LlongCharacter), [new ValueTuple<string, Emotions>("Stretching isn't interrupted when switching to or from lowercase letters", Core.EmotionLlongFlip)]);
+                }
             }
         }
     }

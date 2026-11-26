@@ -10,7 +10,7 @@ namespace Llong.Unlocks
         public FigureEightKnot()
         {
             Name = "Tangled Rope";
-            SpriteData.Add(new LlongItemData(ItemSpriteUsage.Default, "knot"));
+            SpriteData.Add(new LlongItemData(ItemSpriteUsage.Default, "doubleloop"));
             Rarity = ItemRarity.Common;
             Cost = 16;
             Tags =
