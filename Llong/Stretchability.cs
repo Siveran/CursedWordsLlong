@@ -48,6 +48,7 @@ namespace Llong
             return ApplyStretching(tiles, GetStretchability(inventoryCache));
         }
 
+        // Get the unstretched word (babbyy -> baby)
         static public List<Tile> ApplyStretching(List<Tile> tiles, int stretchability)
         {
             if (stretchability == 0)
@@ -56,35 +57,63 @@ namespace Llong
             }
 
             List<Tile> result = [];
-            Tile previousTile = null;
-            int currentStretch = 0;
+            Tile previousUppercaseTile = null;
+            Tile previousLowercaseTile = null;
+            int currentUppercaseStretch = 0;
+            int currentLowercaseStretch = 0;
             for (int i = 0; i < tiles.Count; i++)
             {
-                if (previousTile != null && IsRepeat(previousTile, tiles[i]))
+                if (tiles[i].IsLowerCase)
                 {
-                    // Repeat detected! Try to stretch.
-                    if (currentStretch < stretchability)
+                    if (previousLowercaseTile != null && IsRepeat(previousLowercaseTile, tiles[i]))
                     {
-                        currentStretch++;
+                        // Repeat detected! Try to stretch.
+                        if (currentLowercaseStretch < stretchability)
+                        {
+                            currentLowercaseStretch++;
+                        }
+                        else
+                        {
+                            currentLowercaseStretch = 0;
+                            result.Add(tiles[i]);
+                        }
                     }
                     else
                     {
-                        currentStretch = 0;
+                        // Non-repeat.
+                        currentLowercaseStretch = 0;
                         result.Add(tiles[i]);
                     }
+                    previousLowercaseTile = tiles[i];
                 }
                 else
                 {
-                    // Non-repeat.
-                    currentStretch = 0;
-                    result.Add(tiles[i]);
+                    if (previousUppercaseTile != null && IsRepeat(previousUppercaseTile, tiles[i]))
+                    {
+                        // Repeat detected! Try to stretch.
+                        if (currentUppercaseStretch < stretchability)
+                        {
+                            currentUppercaseStretch++;
+                        }
+                        else
+                        {
+                            currentUppercaseStretch = 0;
+                            result.Add(tiles[i]);
+                        }
+                    }
+                    else
+                    {
+                        // Non-repeat.
+                        currentUppercaseStretch = 0;
+                        result.Add(tiles[i]);
+                    }
+                    previousUppercaseTile = tiles[i];
                 }
-                previousTile = tiles[i];
             }
             return result;
         }
 
-        // Gets the full length of tiles involved in a submitted word. Used for Honeypot + pertinent words.
+        // Gets the full length of tiles involved in a submitted word. Used for Honeypot + pertinent words. ONLY works for fully uppercase/lowercase words.
         // Given tiles ABBCCC and stretchability 1, would return 1, 3, 5, and 6 for 1, 2, 3, and 4 respectively
         static public int GetStretchedLength(List<Tile> tiles, int stretchability, int unstretchedLength)
         {
@@ -200,7 +229,7 @@ namespace Llong
             public int Stretchability;
         }
 
-        static void Prefix(ref IEnumerable<Tile> tiles, GridData gridData, out GetValidUpperAndLowerCaseWordsFromTiles_State __state)
+        static void Prefix(ref IEnumerable<Tile> tiles, GridData gridData, ref List<BossModifier> bossModifiers, out GetValidUpperAndLowerCaseWordsFromTiles_State __state)
         {
             InventoryCache inventoryCache = new InventoryCache(tiles, gridData);
             __state = new GetValidUpperAndLowerCaseWordsFromTiles_State
@@ -208,7 +237,26 @@ namespace Llong
                 AllTiles = [.. tiles],
                 Stretchability = Stretchability.GetStretchability(inventoryCache)
             };
-            tiles = Stretchability.ApplyStretching(__state.AllTiles, __state.Stretchability);
+
+            // Check to make sure the lowercase and uppercase words pass min/max word length boss modifiers (snake/wolf)
+            // If they don't, leave the word in its stretched state, so they properly run into length problems on validation.
+            // If they do, remove snake/wolf from the modifiers, as applying stretching will mess up later word length validation.
+            int lowerCount = tiles.Where((Tile tile) => tile.IsLowerCase).Count();
+            int upperCount = tiles.Count() - lowerCount;
+            bool wordLengthsAreValid = true;
+            if (lowerCount > 0 && !Vocabulary.IsWordLengthValid(lowerCount, bossModifiers))
+            {
+                wordLengthsAreValid = false;
+            }
+            else if (upperCount > 0 && !Vocabulary.IsWordLengthValid(upperCount, bossModifiers))
+            {
+                wordLengthsAreValid = false;
+            }
+            if (wordLengthsAreValid)
+            {
+                tiles = Stretchability.ApplyStretching(__state.AllTiles, __state.Stretchability);
+                bossModifiers = [.. bossModifiers.Where(bossModifier => bossModifier is not MinWordLength && bossModifier is not MaxWordLength)];
+            }
         }
 
         static void Postfix(ref SubmittedWords __result, GetValidUpperAndLowerCaseWordsFromTiles_State __state)
@@ -217,43 +265,46 @@ namespace Llong
             {
                 return;
             }
-            int lowercaseHead = 0;
             int uppercaseHead = 0;
-            int currentStretch = 0;
-            Tile previousTile = null;
+            int lowercaseHead = 0;
+            int currentUppercaseStretch = 0;
+            int currentLowercaseStretch = 0;
+            Tile previousUppercaseTile = null;
+            Tile previousLowercaseTile = null;
             for (int head = 0; head < __state.AllTiles.Count(); head++)
             {
                 if (__state.AllTiles[head].IsLowerCase)
                 {
-                    if (previousTile != null && Stretchability.IsRepeat(previousTile, __state.AllTiles[head]) && currentStretch < __state.Stretchability)
+                    if (previousLowercaseTile != null && Stretchability.IsRepeat(previousLowercaseTile, __state.AllTiles[head]) && currentLowercaseStretch < __state.Stretchability)
                     {
-                        currentStretch++;
+                        currentLowercaseStretch++;
                         // Add this tile to the lowercase word's tiles
                         //MelonLogger.Msg("[Llong] Adding lowercase tile: " + __state.AllTiles[head].GetStringRepresentation(false));
                         __result.LowercaseWordTiles[0].Insert(lowercaseHead, __state.AllTiles[head]);
                     }
                     else
                     {
-                        currentStretch = 0;
+                        currentLowercaseStretch = 0;
                     }
                     lowercaseHead++;
+                    previousLowercaseTile = __state.AllTiles[head];
                 }
                 else
                 {
-                    if (previousTile != null && Stretchability.IsRepeat(previousTile, __state.AllTiles[head]) && currentStretch < __state.Stretchability)
+                    if (previousUppercaseTile != null && Stretchability.IsRepeat(previousUppercaseTile, __state.AllTiles[head]) && currentUppercaseStretch < __state.Stretchability)
                     {
-                        currentStretch++;
+                        currentUppercaseStretch++;
                         // Add this tile to the uppercase word's tiles
                         //MelonLogger.Msg("[Llong] Adding uppercase tile: " + __state.AllTiles[head].GetStringRepresentation(false));
                         __result.WordTiles[0].Insert(uppercaseHead, __state.AllTiles[head]);
                     }
                     else
                     {
-                        currentStretch = 0;
+                        currentUppercaseStretch = 0;
                     }
                     uppercaseHead++;
+                    previousUppercaseTile = __state.AllTiles[head];
                 }
-                previousTile = __state.AllTiles[head];
             }
         }
     }
@@ -281,7 +332,7 @@ namespace Llong
             List<string> secondWords = inventoryCache.PertinentAccumulatorPairs.Select(pair => pair[1]).ToList();
             int stretchability = Stretchability.GetStretchability(inventoryCache);
 
-            // 1. Prioritize getting a pair of words that have an effect
+            // 1. Prioritize getting a pair of words that have an effect. This ONLY works on fully uppercase/lowercase words!
             MethodInfo tryGetAccumulatorWordFromTiles = AccessTools.Method(typeof(Vocabulary), "TryGetAccumulatorWordFromTiles", [typeof(InventoryCache), typeof(IEnumerable<Tile>), typeof(GridData)]);
             foreach (string firstWord in firstWords)
             {
@@ -289,13 +340,13 @@ namespace Llong
                 inventoryCache.PertinentAccumulatorWords.Add(firstWord);
                 int stretchedLength = Stretchability.GetStretchedLength(tiles, stretchability, firstWord.Length);
                 List<Tile> tilePortion = [.. tiles.Take(stretchedLength)];
-                if (tryGetAccumulatorWordFromTiles.Invoke(null, [inventoryCache, tilePortion, gridData]) is string firstFoundWord)
+                if (tryGetAccumulatorWordFromTiles.Invoke(null, [inventoryCache, Stretchability.ApplyStretching(tilePortion, stretchability), gridData]) is string firstFoundWord)
                 {
                     int index = firstWords.IndexOf(firstWord);
                     inventoryCache.PertinentAccumulatorWords.Clear();
                     inventoryCache.PertinentAccumulatorWords.Add(secondWords[index]);
                     tilePortion = [.. tiles.Skip(stretchedLength)];
-                    if (tryGetAccumulatorWordFromTiles.Invoke(null, [inventoryCache, tilePortion, gridData]) is string secondFoundWord)
+                    if (tryGetAccumulatorWordFromTiles.Invoke(null, [inventoryCache, Stretchability.ApplyStretching(tilePortion, stretchability), gridData]) is string secondFoundWord)
                     {
                         //MelonLogger.Msg("[Llong] Accumulator pair!");
                         __result = new SubmittedWords
@@ -325,31 +376,114 @@ namespace Llong
             //MelonLogger.Msg("[Llong] No single word");
 
             // 3. Next, get ANY two words
-            // Unstretch the word to get the unstretched length
-            List<Tile> unstretched = Stretchability.ApplyStretching(tiles, stretchability);
-            for (int i = 1; i < unstretched.Count<Tile>(); i++)
+            // Because you can get situations where a word is threaded between lowercase and uppercase stretched tiles, we either:
+            // A: Need to ONLY cut the word where BOTH stretches are done (a little unfortunate)
+            // B: Allow cutting the word ANYWHERE (chaos in the streets)
+            // I do A.
+            int currentUppercaseStretch = 0;
+            int currentLowercaseStretch = 0;
+            Tile previousUppercaseTile = null;
+            Tile previousLowercaseTile = null;
+            for (int i = 0; i < tiles.Count(); i++)
             {
-                // Cut the word after each set of stretched letters
-                int cutIndex = Stretchability.GetStretchedLength(tiles, stretchability, i);
-                List<Tile> tilePortion = [.. tiles.Take(cutIndex)];
-                SubmittedWords firstValidWords = Vocabulary.GetValidUpperAndLowerCaseWordsFromTiles(tilePortion, bossModifiers, gridData, inventoryCache);
-                if (firstValidWords != null)
+                bool isMidUppercaseStretch = false;
+                bool isMidLowercaseStretch = false;
+                if (tiles[i].IsLowerCase)
                 {
-                    tilePortion = [.. tiles.Skip(cutIndex)];
-                    SubmittedWords secondValidWords = Vocabulary.GetValidUpperAndLowerCaseWordsFromTiles(tilePortion, bossModifiers, gridData, inventoryCache);
-                    if (secondValidWords != null)
+                    if (previousLowercaseTile != null && Stretchability.IsRepeat(previousLowercaseTile, tiles[i]))
                     {
-                        //MelonLogger.Msg("[Llong] Honeypot!");
-                        __result = new SubmittedWords
+                        // Repeat detected! Try to stretch.
+                        if (currentLowercaseStretch < stretchability)
                         {
-                            Words = [.. firstValidWords.Words.Concat(secondValidWords.Words)],
-                            WordTiles = [.. firstValidWords.WordTiles.Concat(secondValidWords.WordTiles)],
-                            LowercaseWords = [.. firstValidWords.LowercaseWords.Concat(secondValidWords.LowercaseWords)],
-                            LowercaseWordTiles = [.. firstValidWords.LowercaseWordTiles.Concat(secondValidWords.LowercaseWordTiles)]
-                        };
+                            isMidLowercaseStretch = true;
+                            currentLowercaseStretch++;
+                        }
+                        else
+                        {
+                            currentLowercaseStretch = 0;
+                        }
+                    }
+                    else
+                    {
+                        // Non-repeat.
+                        currentLowercaseStretch = 0;
+                    }
 
-                        //MelonLogger.Msg("[Llong] Words: " + __result.Words.ToString() + " | Lowercase Words: " + __result.Words.ToString());
-                        return false;
+                    // Look ahead to the next uppercase tile. If it's a repeat of the previous uppercase tile, prevent cuts.
+                    if (!isMidLowercaseStretch && currentUppercaseStretch < stretchability && previousUppercaseTile != null)
+                    {
+                        for (int j = i + 1; j < tiles.Count(); j++)
+                        {
+                            if (!tiles[j].IsLowerCase)
+                            {
+                                isMidUppercaseStretch = Stretchability.IsRepeat(previousUppercaseTile, tiles[j]);
+                                break;
+                            }
+                        }
+                    }
+                    previousLowercaseTile = tiles[i];
+                }
+                else
+                {
+                    if (previousUppercaseTile != null && Stretchability.IsRepeat(previousUppercaseTile, tiles[i]))
+                    {
+                        // Repeat detected! Try to stretch.
+                        if (currentUppercaseStretch < stretchability)
+                        {
+                            isMidUppercaseStretch = true;
+                            currentUppercaseStretch++;
+                        }
+                        else
+                        {
+                            currentUppercaseStretch = 0;
+                        }
+                    }
+                    else
+                    {
+                        // Non-repeat.
+                        currentUppercaseStretch = 0;
+                    }
+
+                    // Look ahead to the next uppercase tile. If it's a repeat of the previous uppercase tile, prevent cuts.
+                    if (!isMidUppercaseStretch && currentLowercaseStretch < stretchability && previousLowercaseTile != null)
+                    {
+                        for (int j = i + 1; j < tiles.Count(); j++)
+                        {
+                            if (tiles[j].IsLowerCase)
+                            {
+                                isMidLowercaseStretch = Stretchability.IsRepeat(previousLowercaseTile, tiles[j]);
+                                break;
+                            }
+                        }
+                    }
+
+                    previousUppercaseTile = tiles[i];
+                }
+
+                if (i > 0 && !isMidUppercaseStretch && !isMidLowercaseStretch)
+                {
+                    // There's no stretch happening, so we can cut here!
+                    int cutIndex = i;
+                    List<Tile> tilePortion = [.. tiles.Take(cutIndex)];
+                    SubmittedWords firstValidWords = Vocabulary.GetValidUpperAndLowerCaseWordsFromTiles(tilePortion, bossModifiers, gridData, inventoryCache);
+                    if (firstValidWords != null)
+                    {
+                        tilePortion = [.. tiles.Skip(cutIndex)];
+                        SubmittedWords secondValidWords = Vocabulary.GetValidUpperAndLowerCaseWordsFromTiles(tilePortion, bossModifiers, gridData, inventoryCache);
+                        if (secondValidWords != null)
+                        {
+                            //MelonLogger.Msg("[Llong] Honeypot!");
+                            __result = new SubmittedWords
+                            {
+                                Words = [.. firstValidWords.Words.Concat(secondValidWords.Words)],
+                                WordTiles = [.. firstValidWords.WordTiles.Concat(secondValidWords.WordTiles)],
+                                LowercaseWords = [.. firstValidWords.LowercaseWords.Concat(secondValidWords.LowercaseWords)],
+                                LowercaseWordTiles = [.. firstValidWords.LowercaseWordTiles.Concat(secondValidWords.LowercaseWordTiles)]
+                            };
+
+                            //MelonLogger.Msg("[Llong] Words: " + __result.Words.ToString() + " | Lowercase Words: " + __result.Words.ToString());
+                            return false;
+                        }
                     }
                 }
             }
@@ -359,25 +493,23 @@ namespace Llong
         }
     }
 
-
-    [HarmonyPatch(typeof(Owl), "ApplyWordBonus")]
-    class Owl_ApplyWordBonus_Patch
+    /*
+    [HarmonyPatch(typeof(Vocabulary), "GetValidWordFromTiles")]
+    class Vocabulary_GetValidWordFromTiles_Patch
     {
-        static void Prefix(ScoreCalcVizInfo step, int gridNumber, List<Tile> tiles, List<string> words, List<TileSelection> selections, List<HistoricWord> previousWords, GridData gridData, List<Tile> allTiles)
+        static void Prefix(Tile tile, TileSelection tileSelection)
         {
-            MelonLogger.Msg("[Owl] ApplyWordBonus");
-            for (int tileIndex = 0; tileIndex < tiles.Count(); tileIndex++)
-            {
-                MelonLogger.Msg("[Owl] " + tileIndex + " | " + (tiles[tileIndex].IsCursed(allTiles) ? "Cursed" : "Normal") + " | " + tiles[tileIndex].GetStringRepresentation(false) + (tiles[tileIndex].IsLowerCase ? " (lowercase)" : ""));
-            }
+
         }
     }
+    */
 
     [HarmonyPatch(typeof(WordLetterController), "Populate")]
     class WordLetterController_Populate_Patch
     {
         static void Prefix(Tile tile, TileSelection tileSelection)
         {
+            // TODO: Check for changes here
             tileSelection.IsWobbly = tile.IsDisplayingAsVariableLetter();
         }
     }
@@ -388,7 +520,7 @@ namespace Llong
     {
         static bool Prefix(ref bool __result, Tile __instance, TileSelectionManager tileSelectionManager = null, List<Tile> wordTiles = null)
         {
-            MelonLogger.Msg("[Llong] IsDisplayingAsVariableLetter");
+            //MelonLogger.Msg("[Llong] IsDisplayingAsVariableLetter");
             if (__instance.MyGlyphType == GlyphType.ScatteredItem)
             {
                 // Items don't like wobbling :( Just use normal logic.
@@ -426,42 +558,82 @@ namespace Llong
             if (selectedTiles.Contains(__instance))
             {
                 // This tile is selected. Determine its wobbliness based on its position in the word.
-                Tile previousTile = null;
-                int currentStretch = 0;
+                Tile previousUppercaseTile = null;
+                Tile previousLowercaseTile = null;
+                int currentUppercaseStretch = 0;
+                int currentLowercaseStretch = 0;
                 for (int i = 0; i < selectedTiles.Count; i++)
                 {
-                    if (previousTile != null && Stretchability.IsRepeat(previousTile, selectedTiles[i]))
+                    if (selectedTiles[i].IsLowerCase)
                     {
-                        // Repeat detected! Try to stretch.
-                        if (currentStretch < stretchability)
+                        if (previousLowercaseTile != null && Stretchability.IsRepeat(previousLowercaseTile, selectedTiles[i]))
                         {
-                            currentStretch++;
+                            // Repeat detected! Try to stretch.
+                            if (currentLowercaseStretch < stretchability)
+                            {
+                                currentLowercaseStretch++;
+                            }
+                            else
+                            {
+                                currentLowercaseStretch = 0;
+                            }
                         }
                         else
                         {
-                            currentStretch = 0;
+                            // Non-repeat.
+                            currentLowercaseStretch = 0;
                         }
+                        if (selectedTiles[i] == __instance)
+                        {
+                            // That's us!!
+                            if (currentLowercaseStretch > 0)
+                            {
+                                // Force the result to true
+                                __result = true;
+                                return false; // Skip normal logic
+                            }
+                            else
+                            {
+                                return true; // Do normal wobbly logic for this tile
+                            }
+                        }
+                        previousLowercaseTile = selectedTiles[i];
                     }
                     else
                     {
-                        // Non-repeat.
-                        currentStretch = 0;
-                    }
-                    if (selectedTiles[i] == __instance)
-                    {
-                        // That's us!!
-                        if (currentStretch > 0)
+                        if (previousUppercaseTile != null && Stretchability.IsRepeat(previousUppercaseTile, selectedTiles[i]))
                         {
-                            // Force the result to true
-                            __result = true;
-                            return false; // Skip normal logic
+                            // Repeat detected! Try to stretch.
+                            if (currentUppercaseStretch < stretchability)
+                            {
+                                currentUppercaseStretch++;
+                            }
+                            else
+                            {
+                                currentUppercaseStretch = 0;
+                            }
                         }
                         else
                         {
-                            return true; // Do normal wobbly logic for this tile
+                            // Non-repeat.
+                            currentUppercaseStretch = 0;
                         }
+                        if (selectedTiles[i] == __instance)
+                        {
+                            // That's us!!
+                            if (currentUppercaseStretch > 0)
+                            {
+                                // Force the result to true
+                                __result = true;
+                                return false; // Skip normal logic
+                            }
+                            else
+                            {
+                                return true; // Do normal wobbly logic for this tile
+                            }
+                        }
+                        previousUppercaseTile = selectedTiles[i];
                     }
-                    previousTile = selectedTiles[i];
                 }
             }
             else if (selectedTiles.Count == 0)
@@ -471,19 +643,34 @@ namespace Llong
             }
             else
             {
-                string lastTileString = Stretchability.GetCaseSensitiveStringRepresentation(selectedTiles[^1]);
+                string lastMatchingCaseTileString = "";
+                bool isLowerCase = __instance.IsLowerCase;
 
-                if (lastTileString != Stretchability.GetCaseSensitiveStringRepresentation(__instance))
+                for (int tileIndex = 0; tileIndex < selectedTiles.Count(); tileIndex++)
                 {
-                    // The last tile of the selected word doesn't match this unselected tile. Do normal logic.
+                    if (selectedTiles[tileIndex].IsLowerCase == isLowerCase)
+                    {
+                        lastMatchingCaseTileString = Stretchability.GetCaseSensitiveStringRepresentation(selectedTiles[tileIndex]);
+                    }
+                }
+
+                if (lastMatchingCaseTileString != Stretchability.GetCaseSensitiveStringRepresentation(__instance))
+                {
+                    // The last matching-case tile of the selected word doesn't match this unselected tile. Do normal logic.
                     return true;
                 }
 
                 // Count backwards from the end of the selected word to see if this tile is stretch-eligible
                 int repeatCount = 0;
-                for (int i = selectedTiles.Count - 2; i >= 0; i--)
+                for (int i = selectedTiles.Count - 1; i >= 0; i--)
                 {
-                    if (Stretchability.GetCaseSensitiveStringRepresentation(selectedTiles[i]) == lastTileString)
+                    // Skip over opposing case tiles
+                    if (selectedTiles[i].IsLowerCase != isLowerCase)
+                    {
+                        continue;
+                    }
+
+                    if (Stretchability.GetCaseSensitiveStringRepresentation(selectedTiles[i]) == lastMatchingCaseTileString)
                     {
                         if (repeatCount == stretchability)
                         {
@@ -502,7 +689,7 @@ namespace Llong
                     }
                 }
 
-                if (repeatCount < stretchability)
+                if (repeatCount <= stretchability)
                 {
                     __result = true;
                     return false; // Skip normal logic

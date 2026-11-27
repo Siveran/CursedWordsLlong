@@ -191,15 +191,18 @@ namespace Llong
                     new ValueTuple<string, Emotions>("Stretched letters are ALWAYS ignored when checking the dictionary", Core.EmotionLlongFlip),
                     new ValueTuple<string, Emotions>("Numbers don't count stretched letters", Core.EmotionLlongFlip)
                 ]);
-                
+
                 if (SaveManager.IsBulkUnlockUnlocked(typeof(LowercaseLettersUnlock)))
                 {
-                    ____characterSpecificToolTips.Add(typeof(LlongCharacter), [new ValueTuple<string, Emotions>("Stretching isn't interrupted when switching to or from lowercase letters", Core.EmotionLlongFlip)]);
+                    ____characterSpecificToolTips[typeof(LlongCharacter)].Add(new ValueTuple<string, Emotions>("Stretching isn't interrupted when switching to or from lowercase letters", Core.EmotionLlongFlip));
+                }
+                if (SaveManager.IsItemUnlocked(typeof(Honeypot)))
+                {
+                    ____characterSpecificToolTips[typeof(LlongCharacter)].Add(new ValueTuple<string, Emotions>("Honeypot can't break a stretched letter into two", Core.EmotionLlongFlip));
                 }
             }
         }
     }
-
 
     [HarmonyPatch(typeof(IDCard))]
     [HarmonyPatch(MethodType.Constructor)]
