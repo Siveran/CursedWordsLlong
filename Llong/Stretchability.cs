@@ -661,7 +661,7 @@ namespace Llong
                 }
 
                 // Count backwards from the end of the selected word to see if this tile is stretch-eligible
-                int repeatCount = 0;
+                int repeatCount = -1; // EEE
                 for (int i = selectedTiles.Count - 1; i >= 0; i--)
                 {
                     // Skip over opposing case tiles
@@ -689,7 +689,7 @@ namespace Llong
                     }
                 }
 
-                if (repeatCount <= stretchability)
+                if (repeatCount < stretchability)
                 {
                     __result = true;
                     return false; // Skip normal logic

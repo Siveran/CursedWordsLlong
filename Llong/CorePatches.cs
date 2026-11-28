@@ -194,7 +194,8 @@ namespace Llong
 
                 if (SaveManager.IsBulkUnlockUnlocked(typeof(LowercaseLettersUnlock)))
                 {
-                    ____characterSpecificToolTips[typeof(LlongCharacter)].Add(new ValueTuple<string, Emotions>("Stretching isn't interrupted when switching to or from lowercase letters", Core.EmotionLlongFlip));
+                    ____characterSpecificToolTips[typeof(LlongCharacter)].Add(new ValueTuple<string, Emotions>("Lowercase letters won't interrupt a stretch of uppercase letters", Core.EmotionLlongFlip));
+                    ____characterSpecificToolTips[typeof(LlongCharacter)].Add(new ValueTuple<string, Emotions>("Uppercase letters won't interrupt a stretch of lowercase letters", Core.EmotionLlongFlip));
                 }
                 if (SaveManager.IsItemUnlocked(typeof(Honeypot)))
                 {
